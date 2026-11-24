@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>IFTO Maps — Campus Palmas</title>
+  <meta name="application-name" content="IFTO Maps" />
+  <meta name="apple-mobile-web-app-title" content="IFTO Maps" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#14532d" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-512.png" />
+  <link rel="icon" type="image/png" href="icon-192.png" />
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    :root {
+      --verde: #15803d;
+      --verde-escuro: #14532d;
+      --azul: #1d4ed8;
+      --vermelho: #dc2626;
+      --borda: #e2e8f0;
+      --texto: #0f172a;
+      --subtexto: #475569;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      color: var(--texto);
+      overflow: hidden;
+      background: #0b1120;
+    }
+
+    #app {
+      display: flex;
+      width: 100%;
+      height: 100dvh;
+      position: relative;
+    }
+
+    #map {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      background: #0b1120;
+    }
+
+    /* Seletor de Modo: Celular (padrão) / Computador */
+    .device-switcher {
+      display: inline-flex;
+      background: rgba(15, 23, 42, 0.92);
+      padding: 3px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+      flex-shrink: 0;
+    }
+    .device-btn {
+      border: none;
+      background: transparent;
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 6px 11px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .device-btn.active {
+      background: #22c55e;
+      color: #052e16;
+    }
+
+    /* =====================================================================
+       MODO CELULAR (INICIA ATIVO POR PADRÃO)
+       ===================================================================== */
+    body.mode-mobile #sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      max-width: 100%;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      pointer-events: none;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 12px;
+      gap: 8px;
+    }
+
+    body.mode-mobile .header {
+      pointer-events: auto;
+      background: rgba(20, 83, 45, 0.95);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    }
+    body.mode-mobile .header h1 {
+      font-size: 0.92rem;
+    }
+    body.mode-mobile .header p {
+      display: none;
+    }
+
+    body.mode-mobile .origin-section {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.96);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 8px 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+      border: none;
+    }
+    body.mode-mobile .origin-hint {
+      display: none;
+    }
+
+    body.mode-mobile .search-section {
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.98);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 10px 12px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.32);
+      border: none;
+    }
+
+    body.mode-mobile #searchResults {
+      max-height: 46dvh;
+    }
+
+    body.mode-mobile #routeCard {
+      position: fixed;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      margin: 0;
+      z-index: 1100;
+      background: rgba(255, 255, 255, 0.98);
+      border: 2px solid #3b82f6;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+      pointer-events: auto;
+    }
+
+    body.mode-mobile #statusBar,
+    body.mode-mobile .legend-box {
+      display: none;
+    }
+
+    /* =====================================================================
+       MODO COMPUTADOR
+       ===================================================================== */
+    body.mode-desktop #sidebar {
+      width: 410px;
+      max-width: 92vw;
+      height: 100dvh;
+      background: #ffffff;
+      border-right: 1px solid var(--borda);
+      display: flex;
+      flex-direction: column;
+      z-index: 1000;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.35);
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--verde-escuro), var(--verde));
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .header h1 {
+      font-size: 1.02rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .header p {
+      font-size: 0.75rem;
+      opacity: 0.92;
+      margin-top: 3px;
+    }
+
+    .section {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--borda);
+    }
+
+    .label-title {
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--subtexto);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Barra de Busca */
+    .search-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+    .search-wrapper {
+      position: relative;
+      flex: 1;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 10px 36px 10px 12px;
+      border: 2px solid #cbd5e1;
+      border-radius: 9px;
+      font-size: 0.93rem;
+      outline: none;
+      background: #fff;
+      transition: border-color 0.2s;
+    }
+    #searchInput:focus {
+      border-color: var(--verde);
+    }
+    #clearSearchBtn {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      border: none;
+      background: #e2e8f0;
+      color: #334155;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: bold;
+      display: none;
+    }
+    #clearSearchBtn:hover { background: #cbd5e1; }
+
+    #btnToggleList {
+      padding: 10px 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 9px;
+      background: #f8fafc;
+      color: #0f172a;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #btnToggleList:hover { background: #e2e8f0; }
+    body.mode-desktop #btnToggleList {
+      display: none;
+    }
+
+    /* Lista de TODOS os 445 pontos do Shapefile */
+    #searchResults {
+      max-height: 360px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid var(--borda);
+      border-radius: 9px;
+      margin-top: 8px;
+      background: #fff;
+      display: none;
+    }
+    body.mode-desktop #searchResults {
+      display: block;
+      flex: 1;
+      max-height: calc(100dvh - 335px);
+    }
+
+    .results-header {
+      position: sticky;
+      top: 0;
+      background: #f1f5f9;
+      padding: 6px 12px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #334155;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      z-index: 2;
+    }
+
+    .result-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .result-item:last-child { border-bottom: none; }
+    .result-item:hover, .result-item:active { background: #f0fdf4; }
+    .result-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--texto);
+    }
+    .result-meta {
+      font-size: 0.75rem;
+      color: var(--subtexto);
+      margin-top: 2px;
+    }
+
+    /* Botões */
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .btn {
+      flex: 1;
+      padding: 9px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--texto);
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .btn:hover { background: #f1f5f9; }
+    .btn-blue {
+      background: var(--azul);
+      color: #fff;
+      border-color: var(--azul);
+    }
+    .btn-blue:hover { background: #1e40af; }
+    .btn-danger {
+      background: #fef2f2;
+      color: var(--vermelho);
+      border-color: #fecaca;
+    }
+    .btn-danger:hover { background: #fee2e2; }
+    .btn.active-pick {
+      background: #fef3c7;
+      border-color: #f59e0b;
+      color: #92400e;
+    }
+
+    /* Cartão de Rota Ativa */
+    #routeCard {
+      display: none;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-top: 10px;
+    }
+    #routeCard h3 {
+      font-size: 0.94rem;
+      color: #1e3a8a;
+      margin-bottom: 4px;
+    }
+    .route-stats {
+      display: flex;
+      gap: 14px;
+      margin: 8px 0;
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: #1d4ed8;
+    }
+    .route-detail {
+      font-size: 0.78rem;
+      color: #334155;
+      line-height: 1.4;
+    }
+
+    #statusBar {
+      padding: 10px 16px;
+      font-size: 0.78rem;
+      color: var(--subtexto);
+      background: #f8fafc;
+      margin-top: auto;
+      border-top: 1px solid var(--borda);
+    }
+
+    /* Nitidez dos tiles de satélite */
+    .leaflet-tile-container img,
+    .leaflet-tile-container canvas {
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: auto;
+    }
+
+    /* Marcadores Pulsantes */
+    .pulse-origin {
+      width: 18px;
+      height: 18px;
+      background: #3b82f6;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.45), 0 2px 6px rgba(0, 0, 0, 0.6);
+    }
+    .pulse-dest {
+      width: 22px;
+      height: 22px;
+      background: #ef4444;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.45), 0 2px 8px rgba(0, 0, 0, 0.7);
+      animation: pulseRed 1.5s infinite;
+    }
+    @keyframes pulseRed {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75); }
+      70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+
+    .legend-box {
+      background: rgba(15, 23, 42, 0.88);
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+      font-size: 0.78rem;
+      line-height: 1.65;
+    }
+    .dot {
+      display: inline-block;
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      border: 1.5px solid #fff;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="mode-mobile">
+
+  <div id="app">
+    <aside id="sidebar">
+      <div class="header">
+        <div style="min-width:0;">
+          <h1>IFTO Maps</h1>
+          <p>Campus Palmas • Navegação Satélite</p>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+          <button type="button" class="device-btn active" id="btnOpenQr" style="background:#ffffff; color:#14532d;" title="Abrir Link de Navegação e QR Code">📲 QR</button>
+          <!-- Seletor Celular (Padrão) / Computador -->
+          <div class="device-switcher" role="group" aria-label="Modo de tela">
+            <button type="button" class="device-btn active" id="btnModeMobile">📱 Celular</button>
+            <button type="button" class="device-btn" id="btnModeDesktop">💻 PC</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 1. Minha Localização -->
+      <div class="section origin-section">
+        <div class="label-title">
+          <span>📍 Minha Localização</span>
+          <span id="locSourceBadge" style="color:#1d4ed8;">Entrada Principal</span>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-blue" id="btnUseGps">📡 Meu GPS</button>
+          <button type="button" class="btn" id="btnPickOrigin">🖱️ Marcar no mapa</button>
+        </div>
+        <div class="origin-hint" style="font-size:0.74rem; color:#64748b; margin-top:6px;">
+          Arraste o pino azul sobre o satélite ou clique em "Marcar no mapa" para ajustar sua origem.
+        </div>
+      </div>
+
+      <!-- 2. Barra de Pesquisa com TODOS os 445 pontos do Shapefile -->
+      <div class="section search-section" style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+        <div class="label-title">
+          <span>🔍 Buscar Ponto (Shapefile)</span>
+          <span id="pointsCounter">445 pontos SHP</span>
+        </div>
+
+        <div class="search-row">
+          <div class="search-wrapper">
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Pesquisar sala, bloco, setor..."
+              autocomplete="off"
+            />
+            <button type="button" id="clearSearchBtn" title="Limpar busca">✕</button>
+          </div>
+          <button type="button" id="btnToggleList" title="Abrir lista completa do Shapefile">📋 Lista</button>
+        </div>
+
+        <!-- Lista completa de pontos do Shapefile -->
+        <div id="searchResults"></div>
+
+        <!-- Cartão de Rota Ativa -->
+        <div id="routeCard">
+          <h3 id="destTitle">Destino Selecionado</h3>
+          <div class="route-detail" id="destMeta"></div>
+          <div class="route-stats">
+            <span id="routeDist">📏 0 m</span>
+            <span id="routeTime">🚶 ~0 min</span>
+          </div>
+          <div class="btn-row" style="margin-bottom:6px;">
+            <button type="button" class="btn btn-blue" id="btnRouteQr">🔗 Link &amp; QR Code</button>
+            <button type="button" class="btn" id="btnExternalMaps">🧭 Google Maps</button>
+          </div>
+          <div class="btn-row">
+            <button type="button" class="btn btn-danger" id="btnResetView">
+              Mostrar todos os pontos do SHP
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="statusBar">Shapefile carregado automaticamente (445 pontos).</div>
+    </aside>
+
+    <main id="map"></main>
+  </div>
+
+  <!-- Modal Link de Navegação & QR Code (IFTO Maps) -->
+  <div id="qrModal" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,0.78); backdrop-filter:blur(4px); z-index:2500; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:#ffffff; border-radius:16px; max-width:400px; width:100%; padding:18px; box-shadow:0 24px 48px rgba(0,0,0,0.45); text-align:center; border:1px solid #e2e8f0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <strong style="font-size:1.02rem; color:#14532d;">📲 IFTO Maps — Link &amp; QR Code</strong>
+        <button type="button" id="btnCloseQr" style="border:none; background:#e2e8f0; color:#334155; width:30px; height:30px; border-radius:50%; cursor:pointer; font-weight:bold;">✕</button>
+      </div>
+      <p id="qrDestLabel" style="font-size:0.82rem; color:#475569; margin-bottom:10px;">Campus IFTO Palmas — Acesso Geral</p>
+
+      <!-- Seletor de tipo de link -->
+      <div style="display:flex; gap:6px; margin-bottom:10px; background:#f1f5f9; padding:4px; border-radius:10px;">
+        <button type="button" id="tabLinkGoogle" class="btn btn-blue" style="padding:7px 8px; font-size:0.76rem;">🧭 Rota Google Maps</button>
+        <button type="button" id="tabLinkApp" class="btn" style="padding:7px 8px; font-size:0.76rem;">🗺️ Link IFTO Maps</button>
+      </div>
+
+      <div style="background:#ffffff; border:2px solid #e2e8f0; border-radius:12px; padding:12px; display:inline-block; margin-bottom:10px;">
+        <canvas id="qrCanvas" width="232" height="232" style="display:block; width:216px; height:216px;"></canvas>
+      </div>
+
+      <div style="text-align:left; margin-bottom:10px;">
+        <label style="font-size:0.72rem; font-weight:700; color:#475569; display:block; margin-bottom:4px;">LINK DE NAVEGAÇÃO:</label>
+        <input type="text" id="navLinkInput" readonly style="width:100%; padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; font-size:0.77rem; background:#f8fafc; color:#0f172a;" />
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn btn-blue" id="btnCopyLink">📋 Copiar Link</button>
+        <button type="button" class="btn" id="btnDownloadQr">⬇️ Baixar QR (PNG)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    // =========================================================================
+    // SHAPEFILE INTEGRADO POR PADRÃO (38 Edificações, 39 Caminhos, 445 Pontos)
+    // =========================================================================
+    const EMBEDDED_SHP_DATA = {"edificacoes":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"cod":"ED001","nome":"Bloco 5","area_m2":999.3},"geometry":{"type":"Polygon","coordinates":[[[-48.312249,-10.199651],[-48.312228,-10.199546],[-48.311442,-10.199724],[-48.311468,-10.199819],[-48.312249,-10.199651]]]}},{"type":"Feature","properties":{"cod":"ED002","nome":"Bloco 7","area_m2":1013.9},"geometry":{"type":"Polygon","coordinates":[[[-48.312293,-10.19984],[-48.311509,-10.200016],[-48.311527,-10.200115],[-48.312316,-10.199944],[-48.312293,-10.19984]]]}},{"type":"Feature","properties":{"cod":"ED003","nome":"Bloco 7A","area_m2":1145.7},"geometry":{"type":"Polygon","coordinates":[[[-48.311475,-10.200006],[-48.31069,-10.200172],[-48.310714,-10.200289],[-48.3115,-10.200119],[-48.311475,-10.200006]]]}},{"type":"Feature","properties":{"cod":"ED004","nome":"Bloco 5A","area_m2":1147.4},"geometry":{"type":"Polygon","coordinates":[[[-48.311414,-10.199721],[-48.310634,-10.199885],[-48.310655,-10.200003],[-48.311438,-10.199835],[-48.311414,-10.199721]]]}},{"type":"Feature","properties":{"cod":"ED005","nome":"Bloco 9","area_m2":1134.9},"geometry":{"type":"Polygon","coordinates":[[[-48.311568,-10.200289],[-48.311591,-10.200402],[-48.312387,-10.200229],[-48.312353,-10.200118],[-48.311568,-10.200289]]]}},{"type":"Feature","properties":{"cod":"ED006","nome":"Bloco 9A","area_m2":1101.3},"geometry":{"type":"Polygon","coordinates":[[[-48.311537,-10.200291],[-48.310767,-10.200454],[-48.310793,-10.200568],[-48.311561,-10.200403],[-48.311537,-10.200291]]]}},{"type":"Feature","properties":{"cod":"ED007","nome":"Ginásio","area_m2":3561.2},"geometry":{"type":"Polygon","coordinates":[[[-48.311065,-10.199336],[-48.310333,-10.199489],[-48.310413,-10.199877],[-48.311151,-10.19971],[-48.311065,-10.199336]]]}},{"type":"Feature","properties":{"cod":"ED008","nome":"Piscina","area_m2":935.0},"geometry":{"type":"Polygon","coordinates":[[[-48.310311,-10.199408],[-48.310106,-10.199447],[-48.310181,-10.199815],[-48.310383,-10.199763],[-48.310311,-10.199408]]]}},{"type":"Feature","properties":{"cod":"ED009","nome":"Quadra","area_m2":787.0},"geometry":{"type":"Polygon","coordinates":[[[-48.310087,-10.199461],[-48.309916,-10.199497],[-48.309984,-10.19985],[-48.310167,-10.199807],[-48.310087,-10.199461]]]}},{"type":"Feature","properties":{"cod":"ED010","nome":"Basquete","area_m2":749.7},"geometry":{"type":"Polygon","coordinates":[[[-48.309834,-10.199494],[-48.309655,-10.199545],[-48.309727,-10.199866],[-48.309905,-10.199827],[-48.309834,-10.199494]]]}},{"type":"Feature","properties":{"cod":"ED011","nome":"Society","area_m2":1595.4},"geometry":{"type":"Polygon","coordinates":[[[-48.310295,-10.199884],[-48.309796,-10.199991],[-48.309852,-10.200239],[-48.310349,-10.200142],[-48.310295,-10.199884]]]}},{"type":"Feature","properties":{"cod":"ED012","nome":"Gramado","area_m2":3105.3},"geometry":{"type":"Polygon","coordinates":[[[-48.310347,-10.200162],[-48.309818,-10.200269],[-48.309918,-10.200734],[-48.310447,-10.200623],[-48.310347,-10.200162]]]}},{"type":"Feature","properties":{"cod":"ED013","nome":"Bloco 1","area_m2":1301.5},"geometry":{"type":"Polygon","coordinates":[[[-48.313043,-10.199201],[-48.313012,-10.199028],[-48.312414,-10.199156],[-48.312449,-10.199328],[-48.313043,-10.199201]]]}},{"type":"Feature","properties":{"cod":"ED014","nome":"Bloco 2","area_m2":1758.0},"geometry":{"type":"Polygon","coordinates":[[[-48.31231,-10.19918],[-48.311509,-10.199347],[-48.311548,-10.199521],[-48.312348,-10.199351],[-48.31231,-10.19918]]]}},{"type":"Feature","properties":{"cod":"ED015","nome":"Bloco 4","area_m2":1005.5},"geometry":{"type":"Polygon","coordinates":[[[-48.313343,-10.199321],[-48.312639,-10.199464],[-48.312663,-10.199581],[-48.31337,-10.199429],[-48.313343,-10.199321]]]}},{"type":"Feature","properties":{"cod":"ED016","nome":"Bloco 6","area_m2":996.2},"geometry":{"type":"Polygon","coordinates":[[[-48.313405,-10.199602],[-48.312696,-10.199754],[-48.312718,-10.199864],[-48.313427,-10.199714],[-48.313405,-10.199602]]]}},{"type":"Feature","properties":{"cod":"ED017","nome":"Bloco 8","area_m2":960.7},"geometry":{"type":"Polygon","coordinates":[[[-48.313467,-10.19989],[-48.312792,-10.200028],[-48.312814,-10.20015],[-48.313492,-10.199992],[-48.313467,-10.19989]]]}},{"type":"Feature","properties":{"cod":"ED018","nome":"Bloco 11","area_m2":1064.6},"geometry":{"type":"Polygon","coordinates":[[[-48.311777,-10.200539],[-48.311035,-10.200696],[-48.311066,-10.200811],[-48.311801,-10.200649],[-48.311777,-10.200539]]]}},{"type":"Feature","properties":{"cod":"ED019","nome":"Bloco 10","area_m2":2031.2},"geometry":{"type":"Polygon","coordinates":[[[-48.313195,-10.200362],[-48.313172,-10.200244],[-48.311789,-10.200539],[-48.311812,-10.200654],[-48.313195,-10.200362]]]}},{"type":"Feature","properties":{"cod":"ED020","nome":"Garagem","area_m2":1218.7},"geometry":{"type":"Polygon","coordinates":[[[-48.313198,-10.200122],[-48.313273,-10.200458],[-48.313556,-10.200396],[-48.313481,-10.200055],[-48.313198,-10.200122]]]}},{"type":"Feature","properties":{"cod":"ED021","nome":"Caixa D'Ág","area_m2":57.8},"geometry":{"type":"Polygon","coordinates":[[[-48.311332,-10.199585],[-48.311281,-10.199597],[-48.311291,-10.199637],[-48.311262,-10.199678],[-48.311351,-10.199664],[-48.311332,-10.199585]]]}},{"type":"Feature","properties":{"cod":"ED022","nome":"Sub energ3","area_m2":108.0},"geometry":{"type":"Polygon","coordinates":[[[-48.311161,-10.200011],[-48.311143,-10.19995],[-48.311009,-10.19998],[-48.311027,-10.200043],[-48.311161,-10.200011]]]}},{"type":"Feature","properties":{"cod":"ED023","nome":"PlcsSolar1","area_m2":30.4},"geometry":{"type":"Polygon","coordinates":[[[-48.311313,-10.200276],[-48.311249,-10.200286],[-48.311256,-10.200325],[-48.31132,-10.200313],[-48.311313,-10.200276]]]}},{"type":"Feature","properties":{"cod":"ED024","nome":"PlcsSolar2","area_m2":15.4},"geometry":{"type":"Polygon","coordinates":[[[-48.311234,-10.200309],[-48.311223,-10.200297],[-48.311195,-10.2003],[-48.311201,-10.200338],[-48.311229,-10.200332],[-48.311237,-10.200326],[-48.311234,-10.200309]]]}},{"type":"Feature","properties":{"cod":"ED025","nome":"PlcsSolar3","area_m2":33.7},"geometry":{"type":"Polygon","coordinates":[[[-48.311182,-10.200345],[-48.311174,-10.200308],[-48.311104,-10.20032],[-48.311112,-10.200359],[-48.311182,-10.200345]]]}},{"type":"Feature","properties":{"cod":"ED026","nome":"PlcsSolar4","area_m2":57.4},"geometry":{"type":"Polygon","coordinates":[[[-48.310917,-10.200332],[-48.310836,-10.200326],[-48.310828,-10.200384],[-48.31091,-10.20039],[-48.310917,-10.200332]]]}},{"type":"Feature","properties":{"cod":"ED027","nome":"PlcsSolar5","area_m2":13.7},"geometry":{"type":"Polygon","coordinates":[[[-48.310829,-10.200296],[-48.310785,-10.20029],[-48.31078,-10.200317],[-48.310825,-10.200319],[-48.310829,-10.200296]]]}},{"type":"Feature","properties":{"cod":"ED028","nome":"Bloco 14","area_m2":881.1},"geometry":{"type":"Polygon","coordinates":[[[-48.31167,-10.198128],[-48.31094,-10.198283],[-48.310956,-10.198379],[-48.311696,-10.198221],[-48.31167,-10.198128]]]}},{"type":"Feature","properties":{"cod":"ED029","nome":"Bloco 15","area_m2":841.6},"geometry":{"type":"Polygon","coordinates":[[[-48.311712,-10.198321],[-48.310982,-10.198477],[-48.310999,-10.198563],[-48.311737,-10.198415],[-48.311712,-10.198321]]]}},{"type":"Feature","properties":{"cod":"ED030","nome":"Bloco 16","area_m2":869.9},"geometry":{"type":"Polygon","coordinates":[[[-48.311755,-10.198509],[-48.311022,-10.198663],[-48.311043,-10.198757],[-48.311779,-10.198602],[-48.311755,-10.198509]]]}},{"type":"Feature","properties":{"cod":"ED031","nome":"Bloco 17","area_m2":896.7},"geometry":{"type":"Polygon","coordinates":[[[-48.311797,-10.198701],[-48.311063,-10.198854],[-48.311084,-10.198952],[-48.311819,-10.198795],[-48.311797,-10.198701]]]}},{"type":"Feature","properties":{"cod":"ED032","nome":"Biblioteca","area_m2":1519.7},"geometry":{"type":"Polygon","coordinates":[[[-48.312175,-10.19802],[-48.312231,-10.198331],[-48.312615,-10.198248],[-48.312571,-10.198054],[-48.312629,-10.198033],[-48.312615,-10.197971],[-48.312459,-10.197959],[-48.312175,-10.19802]]]}},{"type":"Feature","properties":{"cod":"ED033","nome":"Refeitório","area_m2":656.5},"geometry":{"type":"Polygon","coordinates":[[[-48.313069,-10.198531],[-48.313149,-10.198515],[-48.31312,-10.198391],[-48.31279,-10.198463],[-48.312829,-10.198639],[-48.313001,-10.198598],[-48.313069,-10.198531]]]}},{"type":"Feature","properties":{"cod":"ED034","nome":"Bloco 13","area_m2":522.2},"geometry":{"type":"Polygon","coordinates":[[[-48.310988,-10.200707],[-48.310622,-10.200778],[-48.31065,-10.200896],[-48.311009,-10.200816],[-48.310988,-10.200707]]]}},{"type":"Feature","properties":{"cod":"ED035","nome":"Bloco desc","area_m2":565.1},"geometry":{"type":"Polygon","coordinates":[[[-48.310738,-10.200349],[-48.310581,-10.200378],[-48.310643,-10.200667],[-48.310798,-10.200632],[-48.310738,-10.200349]]]}},{"type":"Feature","properties":{"cod":"ED036","nome":"Estufa1","area_m2":111.6},"geometry":{"type":"Polygon","coordinates":[[[-48.311112,-10.200534],[-48.311025,-10.20056],[-48.311052,-10.20066],[-48.311134,-10.20064],[-48.311112,-10.200534]]]}},{"type":"Feature","properties":{"cod":"ED037","nome":"Estufa2","area_m2":253.0},"geometry":{"type":"Polygon","coordinates":[[[-48.310353,-10.200866],[-48.310091,-10.200918],[-48.310102,-10.200993],[-48.310373,-10.200942],[-48.310353,-10.200866]]]}},{"type":"Feature","properties":{"cod":"ED038","nome":"Apicultura","area_m2":36.9},"geometry":{"type":"Polygon","coordinates":[[[-48.310278,-10.200754],[-48.310258,-10.2008],[-48.310323,-10.200814],[-48.310337,-10.200771],[-48.310278,-10.200754]]]}}]},"caminhos":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"cod":"CA001","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":40.4},"geometry":{"type":"LineString","coordinates":[[-48.310721,-10.199227],[-48.310755,-10.199406],[-48.310721,-10.199227]]}},{"type":"Feature","properties":{"cod":"CA002","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":33.4},"geometry":{"type":"LineString","coordinates":[[-48.310755,-10.199406],[-48.311054,-10.199348]]}},{"type":"Feature","properties":{"cod":"CA003","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":19.6},"geometry":{"type":"LineString","coordinates":[[-48.311054,-10.199348],[-48.311087,-10.199521]]}},{"type":"Feature","properties":{"cod":"CA004","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":32.5},"geometry":{"type":"LineString","coordinates":[[-48.311087,-10.199521],[-48.31138,-10.19947]]}},{"type":"Feature","properties":{"cod":"CA005","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":27.7},"geometry":{"type":"LineString","coordinates":[[-48.31138,-10.19947],[-48.311432,-10.199714]]}},{"type":"Feature","properties":{"cod":"CA006","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":21.7},"geometry":{"type":"LineString","coordinates":[[-48.311087,-10.199521],[-48.311126,-10.199714]]}},{"type":"Feature","properties":{"cod":"CA007","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":78.0},"geometry":{"type":"LineString","coordinates":[[-48.311126,-10.199714],[-48.310428,-10.199849]]}},{"type":"Feature","properties":{"cod":"CA008","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":39.5},"geometry":{"type":"LineString","coordinates":[[-48.310428,-10.199849],[-48.310354,-10.1995]]}},{"type":"Feature","properties":{"cod":"CA009","tipo":"CONCRETO | CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":45.1},"geometry":{"type":"LineString","coordinates":[[-48.310755,-10.199406],[-48.310354,-10.1995]]}},{"type":"Feature","properties":{"cod":"CA010","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":27.4},"geometry":{"type":"LineString","coordinates":[[-48.310424,-10.199765],[-48.31018,-10.199818]]}},{"type":"Feature","properties":{"cod":"CA011","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":26.1},"geometry":{"type":"LineString","coordinates":[[-48.31018,-10.199818],[-48.309947,-10.199867]]}},{"type":"Feature","properties":{"cod":"CA012","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":41.6},"geometry":{"type":"LineString","coordinates":[[-48.31018,-10.199818],[-48.3101,-10.19945]]}},{"type":"Feature","properties":{"cod":"CA013","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":40.9},"geometry":{"type":"LineString","coordinates":[[-48.309947,-10.199867],[-48.309874,-10.199504]]}},{"type":"Feature","properties":{"cod":"CA014","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":25.1},"geometry":{"type":"LineString","coordinates":[[-48.309947,-10.199867],[-48.309725,-10.199921]]}},{"type":"Feature","properties":{"cod":"CA015","tipo":"CONCRETO | CORREDOR","coberto":"NÃO","piso":"INTER TRAVADO","comp_m":9.1},"geometry":{"type":"LineString","coordinates":[[-48.31018,-10.199818],[-48.310196,-10.199899]]}},{"type":"Feature","properties":{"cod":"CA016","tipo":"PASSARELA","coberto":"SIM","piso":"INTER TRAVADO","comp_m":98.1},"geometry":{"type":"LineString","coordinates":[[-48.311432,-10.199714],[-48.311615,-10.200582]]}},{"type":"Feature","properties":{"cod":"CA017","tipo":"CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":63.7},"geometry":{"type":"LineString","coordinates":[[-48.311615,-10.200582],[-48.311047,-10.200704]]}},{"type":"Feature","properties":{"cod":"CA018","tipo":"CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":87.3},"geometry":{"type":"LineString","coordinates":[[-48.311554,-10.200295],[-48.310775,-10.200458]]}},{"type":"Feature","properties":{"cod":"CA019","tipo":"CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":88.7},"geometry":{"type":"LineString","coordinates":[[-48.311493,-10.200005],[-48.310701,-10.200169]]}},{"type":"Feature","properties":{"cod":"CA020","tipo":"CORREDOR","coberto":"SIM","piso":"INTER TRAVADO","comp_m":88.5},"geometry":{"type":"LineString","coordinates":[[-48.311456,-10.199827],[-48.310665,-10.199986]]}},{"type":"Feature","properties":{"cod":"CA021","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":22.4},"geometry":{"type":"LineString","coordinates":[[-48.312411,-10.199418],[-48.312307,-10.199591]]}},{"type":"Feature","properties":{"cod":"CA022","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":99.2},"geometry":{"type":"LineString","coordinates":[[-48.312307,-10.199591],[-48.312231,-10.199608],[-48.312398,-10.200411]]}},{"type":"Feature","properties":{"cod":"CA023","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":5.2},"geometry":{"type":"LineString","coordinates":[[-48.312231,-10.199608],[-48.312221,-10.199561]]}},{"type":"Feature","properties":{"cod":"CA024","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":86.9},"geometry":{"type":"LineString","coordinates":[[-48.312221,-10.199561],[-48.311446,-10.199724]]}},{"type":"Feature","properties":{"cod":"CA025","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":86.2},"geometry":{"type":"LineString","coordinates":[[-48.312279,-10.199847],[-48.311509,-10.200007]]}},{"type":"Feature","properties":{"cod":"CA026","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":88.0},"geometry":{"type":"LineString","coordinates":[[-48.312341,-10.200137],[-48.311554,-10.200295]]}},{"type":"Feature","properties":{"cod":"CA027","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":87.9},"geometry":{"type":"LineString","coordinates":[[-48.312398,-10.200411],[-48.311615,-10.200582]]}},{"type":"Feature","properties":{"cod":"CA028","tipo":"CORREDOR","coberto":"sim","piso":"INTER TRAVADO","comp_m":109.5},"geometry":{"type":"LineString","coordinates":[[-48.312411,-10.199418],[-48.312585,-10.199532],[-48.312639,-10.199521],[-48.312643,-10.199477],[-48.313317,-10.199332]]}},{"type":"Feature","properties":{"cod":"CA029","tipo":"CORREDOR","coberto":"sim","piso":"INTER TRAVADO","comp_m":103.7},"geometry":{"type":"LineString","coordinates":[[-48.312639,-10.199521],[-48.312678,-10.199574],[-48.312713,-10.199757],[-48.313389,-10.19961]]}},{"type":"Feature","properties":{"cod":"CA030","tipo":"CORREDOR","coberto":"sim","piso":"INTER TRAVADO","comp_m":109.0},"geometry":{"type":"LineString","coordinates":[[-48.312713,-10.199757],[-48.312779,-10.200049],[-48.313455,-10.199903]]}},{"type":"Feature","properties":{"cod":"CA031","tipo":"CORREDOR","coberto":"sim","piso":"INTER TRAVADO","comp_m":66.6},"geometry":{"type":"LineString","coordinates":[[-48.312779,-10.200049],[-48.31284,-10.200326],[-48.313154,-10.200261]]}},{"type":"Feature","properties":{"cod":"CA032","tipo":"CORREDOR","coberto":"sim","piso":null,"comp_m":52.9},"geometry":{"type":"LineString","coordinates":[[-48.31284,-10.200326],[-48.312691,-10.200359],[-48.312648,-10.200325],[-48.312577,-10.200338],[-48.312529,-10.200387],[-48.312398,-10.200411]]}},{"type":"Feature","properties":{"cod":"CA033","tipo":"CORREDOR","coberto":"SIM","piso":"LISO","comp_m":81.1},"geometry":{"type":"LineString","coordinates":[[-48.312411,-10.199418],[-48.312386,-10.199292],[-48.312411,-10.199268],[-48.312973,-10.199146]]}},{"type":"Feature","properties":{"cod":"CA034","tipo":"CORREDOR","coberto":"SIM","piso":"LISO","comp_m":88.6},"geometry":{"type":"LineString","coordinates":[[-48.312386,-10.199292],[-48.312357,-10.199276],[-48.311599,-10.199436]]}},{"type":"Feature","properties":{"cod":"CA035","tipo":"PASSARELA","coberto":"SIM","piso":"INTER TRAVADO","comp_m":203.6},"geometry":{"type":"LineString","coordinates":[[-48.312357,-10.199276],[-48.312374,-10.199214],[-48.312204,-10.198427],[-48.312645,-10.198332],[-48.31279,-10.198491],[-48.312828,-10.198641],[-48.31298,-10.198608]]}},{"type":"Feature","properties":{"cod":"CA036","tipo":"PASSARELA","coberto":"SIM","piso":"INTER TRAVADO","comp_m":127.7},"geometry":{"type":"LineString","coordinates":[[-48.312204,-10.198427],[-48.312142,-10.198132],[-48.311721,-10.198216],[-48.31181,-10.198634]]}},{"type":"Feature","properties":{"cod":"CA037","tipo":"PASSARELA","coberto":"SIM","piso":"INTER TRAVADO","comp_m":9.8},"geometry":{"type":"LineString","coordinates":[[-48.312142,-10.198132],[-48.312134,-10.198095],[-48.312183,-10.198087]]}},{"type":"Feature","properties":{"cod":"CA038","tipo":"PASSARELA","coberto":"SIM","piso":"INTER TRAVADO","comp_m":39.7},"geometry":{"type":"LineString","coordinates":[[-48.312134,-10.198095],[-48.3121,-10.197926],[-48.312133,-10.197821],[-48.312188,-10.197766]]}},{"type":"Feature","properties":{"cod":"CA039","tipo":"CORREDOR","coberto":"SIM","piso":"INTERTRAVADO","comp_m":100.0},"geometry":{"type":"LineString","coordinates":[[-48.312314,-10.19959],[-48.312231,-10.199608],[-48.312398,-10.200411]]}}]},"pontos":{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"uid":"PT_0001","id":"N01","cod":null,"nome":"COORD. DE PROCESSO SELETIVO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312517,-10.199263]}},{"type":"Feature","properties":{"uid":"PT_0002","id":"N02","cod":null,"nome":"ESPAÇO DO SERVIDOR","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312461,-10.199189]}},{"type":"Feature","properties":{"uid":"PT_0003","id":"N03","cod":null,"nome":"COPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312488,-10.199181]}},{"type":"Feature","properties":{"uid":"PT_0004","id":"N04","cod":null,"nome":"CPPD","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312526,-10.199171]}},{"type":"Feature","properties":{"uid":"PT_0005","id":"N05","cod":null,"nome":"SALA DE REUNIÕES","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312562,-10.199153]}},{"type":"Feature","properties":{"uid":"PT_0006","id":"N06","cod":null,"nome":"SALA DE APOIO/QUADRO DE CHAVES","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31257,-10.199174]}},{"type":"Feature","properties":{"uid":"PT_0007","id":"N07","cod":null,"nome":"ARQUIVOS","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312632,-10.199156]}},{"type":"Feature","properties":{"uid":"PT_0008","id":"N08","cod":null,"nome":"GERÊNCIA DE RECURSOS HUMANOS","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312661,-10.199131]}},{"type":"Feature","properties":{"uid":"PT_0009","id":"N09","cod":null,"nome":"RECEPÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312711,-10.199133]}},{"type":"Feature","properties":{"uid":"PT_0010","id":"N09","cod":null,"nome":"DIRETORIA DE ADMINISTRAÇÃO E PLANEJAMENTO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312743,-10.199127]}},{"type":"Feature","properties":{"uid":"PT_0011","id":"N11","cod":null,"nome":"DIRETORIA DE ADMINISTRAÇÃO E PLANEJAMENTO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312773,-10.199123]}},{"type":"Feature","properties":{"uid":"PT_0012","id":"N12","cod":null,"nome":"COMUNICAÇÃO SOCIAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312798,-10.199114]}},{"type":"Feature","properties":{"uid":"PT_0013","id":"N13","cod":null,"nome":"RECEPÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31283,-10.199117]}},{"type":"Feature","properties":{"uid":"PT_0014","id":"N14","cod":null,"nome":"CHEFIA DE GABINETE - DIREÇÃO GERAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312824,-10.199095]}},{"type":"Feature","properties":{"uid":"PT_0015","id":"N15","cod":null,"nome":"COPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312859,-10.199103]}},{"type":"Feature","properties":{"uid":"PT_0016","id":"N16","cod":null,"nome":"DIREÇÃO GERAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312894,-10.199094]}},{"type":"Feature","properties":{"uid":"PT_0017","id":"N17","cod":null,"nome":"SALA DE REUNIÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312931,-10.199083]}},{"type":"Feature","properties":{"uid":"PT_0018","id":"N18","cod":null,"nome":"CPD CENTRAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312962,-10.199171]}},{"type":"Feature","properties":{"uid":"PT_0019","id":"C19","cod":null,"nome":"DEPOSITO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312928,-10.199178]}},{"type":"Feature","properties":{"uid":"PT_0020","id":"N20","cod":null,"nome":"SALA DE MANUTENÇÃO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312898,-10.199184]}},{"type":"Feature","properties":{"uid":"PT_0021","id":"N21","cod":null,"nome":"SALA DE ATENDIMENTO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312875,-10.19919]}},{"type":"Feature","properties":{"uid":"PT_0022","id":"N22","cod":null,"nome":"GTI E SALA DE REUNIÃO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312849,-10.199195]}},{"type":"Feature","properties":{"uid":"PT_0023","id":"N22","cod":null,"nome":"DEPPI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312828,-10.1992]}},{"type":"Feature","properties":{"uid":"PT_0024","id":"N23","cod":null,"nome":"COORD. DE PESQUISA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312801,-10.199205]}},{"type":"Feature","properties":{"uid":"PT_0025","id":"N24","cod":null,"nome":"I.S.M","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312774,-10.199213]}},{"type":"Feature","properties":{"uid":"PT_0026","id":"N25","cod":null,"nome":"I.S.F","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312742,-10.199217]}},{"type":"Feature","properties":{"uid":"PT_0027","id":"N26","cod":null,"nome":"COORD. DE CONTABILIDADE E EXECUÇÃO FINANCEIRA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312717,-10.199223]}},{"type":"Feature","properties":{"uid":"PT_0028","id":"N26","cod":null,"nome":"CPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312682,-10.199231]}},{"type":"Feature","properties":{"uid":"PT_0029","id":"N26","cod":null,"nome":"ARQUIVO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312648,-10.199239]}},{"type":"Feature","properties":{"uid":"PT_0030","id":"N27","cod":null,"nome":"CORES GERÊNCIA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312612,-10.199244]}},{"type":"Feature","properties":{"uid":"PT_0031","id":"N28","cod":null,"nome":"CIRCULAÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312572,-10.199241]}},{"type":"Feature","properties":{"uid":"PT_0032","id":"N29","cod":null,"nome":"CORES COORDENAÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312577,-10.199268]}},{"type":"Feature","properties":{"uid":"PT_0033","id":"N30","cod":null,"nome":"RAMPA","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312618,-10.199528]}},{"type":"Feature","properties":{"uid":"PT_0034","id":"N31","cod":null,"nome":"COORD. ÁREA DE INFORMATICA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312741,-10.199503]}},{"type":"Feature","properties":{"uid":"PT_0035","id":"N32","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA HIPERMÍDIA E MULTIMÍDIA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312816,-10.199487]}},{"type":"Feature","properties":{"uid":"PT_0036","id":"N33","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA II TECNOLOGIAS AVANÇADAS","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312876,-10.199474]}},{"type":"Feature","properties":{"uid":"PT_0037","id":"N34","cod":null,"nome":"HALL","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312934,-10.199447]}},{"type":"Feature","properties":{"uid":"PT_0038","id":"N35","cod":null,"nome":"LABORATORISTA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312936,-10.199466]}},{"type":"Feature","properties":{"uid":"PT_0039","id":"N36","cod":null,"nome":"CPD","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312939,-10.199487]}},{"type":"Feature","properties":{"uid":"PT_0040","id":"N37","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA III - PROGRAMAÇÃO E OTIMIZAÇÃO","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313007,-10.19944]}},{"type":"Feature","properties":{"uid":"PT_0041","id":"N38","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA IV - DESENVOLVIMENTO","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313085,-10.199426]}},{"type":"Feature","properties":{"uid":"PT_0042","id":"N39","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA V","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313135,-10.199415]}},{"type":"Feature","properties":{"uid":"PT_0043","id":"N40","cod":null,"nome":"COORD. DA PÓS GRADUAÇÃO EM TELEMÁTICA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313201,-10.199392]}},{"type":"Feature","properties":{"uid":"PT_0044","id":"N42","cod":null,"nome":"GREDES","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313205,-10.199416]}},{"type":"Feature","properties":{"uid":"PT_0045","id":"N43","cod":null,"nome":"SALA DE AULA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313266,-10.199387]}},{"type":"Feature","properties":{"uid":"PT_0046","id":"N50","cod":null,"nome":"SAN. MASCULINO","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312807,-10.199759]}},{"type":"Feature","properties":{"uid":"PT_0047","id":"N51","cod":null,"nome":"SAN. FEMININO","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312817,-10.19981]}},{"type":"Feature","properties":{"uid":"PT_0048","id":"N52","cod":null,"nome":"LABORATÓRIO DE HARDWARE","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312903,-10.199765]}},{"type":"Feature","properties":{"uid":"PT_0049","id":"N53","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA VI","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312963,-10.199754]}},{"type":"Feature","properties":{"uid":"PT_0050","id":"N56","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA VII","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313033,-10.199737]}},{"type":"Feature","properties":{"uid":"PT_0051","id":"N57","cod":null,"nome":"PLABORATÓRIO DE INFORMÁTICA VIII","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313107,-10.199722]}},{"type":"Feature","properties":{"uid":"PT_0052","id":"N58","cod":null,"nome":"LABPORATÓRIO DE INFORMÁTICA IX","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313174,-10.199707]}},{"type":"Feature","properties":{"uid":"PT_0053","id":"N59","cod":null,"nome":"LABORATÓRIO DE INFORMÁTICA X","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31324,-10.199692]}},{"type":"Feature","properties":{"uid":"PT_0054","id":"N60","cod":null,"nome":"COORD. DE SISTEMAS","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313296,-10.199663]}},{"type":"Feature","properties":{"uid":"PT_0055","id":"N61","cod":null,"nome":"CPD","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313302,-10.199692]}},{"type":"Feature","properties":{"uid":"PT_0056","id":"m0001","cod":null,"nome":"Laboratório de topografia","categoria":"outro","edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312852,-10.200057]}},{"type":"Feature","properties":{"uid":"PT_0057","id":null,"cod":null,"nome":"cpd","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312888,-10.200095]}},{"type":"Feature","properties":{"uid":"PT_0058","id":null,"cod":null,"nome":"laboratório geomatica","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312913,-10.200049]}},{"type":"Feature","properties":{"uid":"PT_0059","id":null,"cod":null,"nome":"laboratório hidraulica","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312962,-10.200035]}},{"type":"Feature","properties":{"uid":"PT_0060","id":null,"cod":null,"nome":"laboratorista","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313066,-10.200013]}},{"type":"Feature","properties":{"uid":"PT_0061","id":null,"cod":null,"nome":"apoio","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313023,-10.200056]}},{"type":"Feature","properties":{"uid":"PT_0062","id":null,"cod":null,"nome":"laboratório de solos","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313131,-10.199996]}},{"type":"Feature","properties":{"uid":"PT_0063","id":null,"cod":null,"nome":"apoio","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313192,-10.199976]}},{"type":"Feature","properties":{"uid":"PT_0064","id":null,"cod":null,"nome":"câmara úmida","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313197,-10.200016]}},{"type":"Feature","properties":{"uid":"PT_0065","id":null,"cod":null,"nome":"laboratório de materias de construção/ estruturas","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313244,-10.199974]}},{"type":"Feature","properties":{"uid":"PT_0066","id":null,"cod":null,"nome":"prensa","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313299,-10.199956]}},{"type":"Feature","properties":{"uid":"PT_0067","id":null,"cod":null,"nome":"laboratório de pavimentação","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313347,-10.199953]}},{"type":"Feature","properties":{"uid":"PT_0068","id":null,"cod":null,"nome":"apoio labolatórios","categoria":null,"edif_cod":"ED017","edif_nome":"Bloco 8","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313405,-10.199953]}},{"type":"Feature","properties":{"uid":"PT_0069","id":null,"cod":null,"nome":"fossa sépitica","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31348,-10.199935]}},{"type":"Feature","properties":{"uid":"PT_0070","id":null,"cod":null,"nome":"laboratório de limpeza","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313104,-10.200305]}},{"type":"Feature","properties":{"uid":"PT_0071","id":null,"cod":null,"nome":"depósito de limpeza","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313076,-10.200319]}},{"type":"Feature","properties":{"uid":"PT_0072","id":null,"cod":null,"nome":"banheiro feminino","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313034,-10.200307]}},{"type":"Feature","properties":{"uid":"PT_0073","id":null,"cod":null,"nome":"banheiro masculino","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31304,-10.200352]}},{"type":"Feature","properties":{"uid":"PT_0074","id":null,"cod":null,"nome":"recep laboratório de hospedagem","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312997,-10.200335]}},{"type":"Feature","properties":{"uid":"PT_0075","id":null,"cod":null,"nome":"laboratório de hospedagem","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312925,-10.200355]}},{"type":"Feature","properties":{"uid":"PT_0076","id":null,"cod":null,"nome":"rouparia","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312925,-10.200332]}},{"type":"Feature","properties":{"uid":"PT_0077","id":null,"cod":null,"nome":"quarto","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312875,-10.200341]}},{"type":"Feature","properties":{"uid":"PT_0078","id":null,"cod":null,"nome":"fitoratologia","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312833,-10.200372]}},{"type":"Feature","properties":{"uid":"PT_0079","id":null,"cod":null,"nome":"biotecnoligia","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312755,-10.200389]}},{"type":"Feature","properties":{"uid":"PT_0080","id":null,"cod":null,"nome":"solos","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312722,-10.200425]}},{"type":"Feature","properties":{"uid":"PT_0081","id":null,"cod":null,"nome":"garagem coberta","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313384,-10.200268]}},{"type":"Feature","properties":{"uid":"PT_0082","id":null,"cod":null,"nome":"coodenação de patrimonio","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313258,-10.200197]}},{"type":"Feature","properties":{"uid":"PT_0083","id":null,"cod":null,"nome":"deposito","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.3133,-10.200192]}},{"type":"Feature","properties":{"uid":"PT_0084","id":null,"cod":null,"nome":"garagem","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313374,-10.200179]}},{"type":"Feature","properties":{"uid":"PT_0085","id":null,"cod":null,"nome":"transporte","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31345,-10.200095]}},{"type":"Feature","properties":{"uid":"PT_0086","id":null,"cod":null,"nome":"categorias de obras","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313465,-10.200159]}},{"type":"Feature","properties":{"uid":"PT_0087","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313478,-10.200074]}},{"type":"Feature","properties":{"uid":"PT_0088","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313483,-10.200095]}},{"type":"Feature","properties":{"uid":"PT_0089","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313486,-10.200118]}},{"type":"Feature","properties":{"uid":"PT_0090","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313494,-10.20014]}},{"type":"Feature","properties":{"uid":"PT_0091","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313497,-10.200158]}},{"type":"Feature","properties":{"uid":"PT_0092","id":null,"cod":null,"nome":"baia","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313502,-10.200171]}},{"type":"Feature","properties":{"uid":"PT_0093","id":null,"cod":null,"nome":"w.c masculino","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313473,-10.200089]}},{"type":"Feature","properties":{"uid":"PT_0094","id":null,"cod":null,"nome":"w.c. feminino","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313458,-10.200087]}},{"type":"Feature","properties":{"uid":"PT_0095","id":null,"cod":null,"nome":"escritório","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313495,-10.200323]}},{"type":"Feature","properties":{"uid":"PT_0096","id":null,"cod":null,"nome":"lavabo","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313477,-10.200322]}},{"type":"Feature","properties":{"uid":"PT_0097","id":null,"cod":null,"nome":"entrada e saidas de materiais","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31351,-10.200366]}},{"type":"Feature","properties":{"uid":"PT_0098","id":null,"cod":null,"nome":"depósitos de material escolar","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313467,-10.200379]}},{"type":"Feature","properties":{"uid":"PT_0099","id":null,"cod":null,"nome":"depósito de material de informatica","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313398,-10.20039]}},{"type":"Feature","properties":{"uid":"PT_0100","id":null,"cod":null,"nome":"arquivo","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313347,-10.200366]}},{"type":"Feature","properties":{"uid":"PT_0101","id":null,"cod":null,"nome":"arquivo","categoria":null,"edif_cod":"ED020","edif_nome":"Garagem","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313356,-10.200405]}},{"type":"Feature","properties":{"uid":"PT_0102","id":null,"cod":"PI0001","nome":"DEPÓSITO LANCHONETE","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312359,-10.200436]}},{"type":"Feature","properties":{"uid":"PT_0103","id":null,"cod":"PI0002","nome":"LANCHONETE","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312363,-10.200458]}},{"type":"Feature","properties":{"uid":"PT_0104","id":null,"cod":"PI0003","nome":"PSID","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312332,-10.20044]}},{"type":"Feature","properties":{"uid":"PT_0105","id":null,"cod":"PI0004","nome":"PIBID","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312306,-10.200445]}},{"type":"Feature","properties":{"uid":"PT_0106","id":null,"cod":"PI0005","nome":"SALA DOS CA'S","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312265,-10.200453]}},{"type":"Feature","properties":{"uid":"PT_0107","id":null,"cod":"PI0006","nome":"SALA DE REUNIÕES","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312232,-10.200461]}},{"type":"Feature","properties":{"uid":"PT_0108","id":null,"cod":"PI0007","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312234,-10.200478]}},{"type":"Feature","properties":{"uid":"PT_0109","id":null,"cod":"PI0008","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312216,-10.200482]}},{"type":"Feature","properties":{"uid":"PT_0110","id":null,"cod":"PI0009","nome":"SALA DE ESPERA","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312201,-10.200467]}},{"type":"Feature","properties":{"uid":"PT_0111","id":null,"cod":"PI0010","nome":"COORDENAÇÃO AGRONOMIA","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312209,-10.200511]}},{"type":"Feature","properties":{"uid":"PT_0112","id":null,"cod":"PI0011","nome":"MODELAGEM","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312169,-10.200474]}},{"type":"Feature","properties":{"uid":"PT_0113","id":null,"cod":"PI0012","nome":"IMPRESSORAS","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312167,-10.200517]}},{"type":"Feature","properties":{"uid":"PT_0114","id":null,"cod":"PI0013","nome":"IF MAKER","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31215,-10.200522]}},{"type":"Feature","properties":{"uid":"PT_0115","id":null,"cod":"PI0014","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312117,-10.200489]}},{"type":"Feature","properties":{"uid":"PT_0116","id":null,"cod":"PI0015","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312127,-10.200525]}},{"type":"Feature","properties":{"uid":"PT_0117","id":null,"cod":"PI0016","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312093,-10.200532]}},{"type":"Feature","properties":{"uid":"PT_0118","id":null,"cod":"PI0017","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312066,-10.200501]}},{"type":"Feature","properties":{"uid":"PT_0119","id":null,"cod":"PI0018","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312071,-10.200536]}},{"type":"Feature","properties":{"uid":"PT_0120","id":null,"cod":"PI0019","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312023,-10.200509]}},{"type":"Feature","properties":{"uid":"PT_0121","id":null,"cod":"PI0020","nome":"ÁREA DE FOCO","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312018,-10.200542]}},{"type":"Feature","properties":{"uid":"PT_0122","id":null,"cod":"PI0021","nome":"SIMEMAP","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311877,-10.200555]}},{"type":"Feature","properties":{"uid":"PT_0123","id":null,"cod":"PI0022","nome":"MESTRADO PROFEPT","categoria":null,"edif_cod":"ED019","edif_nome":"Bloco 10","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311879,-10.200584]}},{"type":"Feature","properties":{"uid":"PT_0124","id":null,"cod":"PI0023","nome":"SANITÁRIO MASCULINO","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311783,-10.200577]}},{"type":"Feature","properties":{"uid":"PT_0125","id":null,"cod":"PI0024","nome":"SANITÁRIO FEMININO","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311788,-10.200597]}},{"type":"Feature","properties":{"uid":"PT_0126","id":null,"cod":"PI0025","nome":"MINI AUDITÓRIO","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311683,-10.200581]}},{"type":"Feature","properties":{"uid":"PT_0127","id":null,"cod":"PI0026","nome":"SALA DE DESENHON II","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311466,-10.200627]}},{"type":"Feature","properties":{"uid":"PT_0128","id":null,"cod":"PI0027","nome":"SALA DE DESENHO I","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311561,-10.200606]}},{"type":"Feature","properties":{"uid":"PT_0129","id":null,"cod":"PI0028","nome":"DALA DE AULA","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311412,-10.200638]}},{"type":"Feature","properties":{"uid":"PT_0130","id":null,"cod":"PI0029","nome":"LABORATÓRIO DE ANATOMIA DE ANIMAIS DOMÉSTICOS","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311347,-10.200653]}},{"type":"Feature","properties":{"uid":"PT_0131","id":null,"cod":"PI0030","nome":"BIOTÉRIO","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311273,-10.200667]}},{"type":"Feature","properties":{"uid":"PT_0132","id":null,"cod":"PI0031","nome":"LABORATÓRIO FITOPATOLOGIA","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311108,-10.200708]}},{"type":"Feature","properties":{"uid":"PT_0133","id":null,"cod":"PI0032","nome":"LABORATÓRIO DE FITOPATOLOGIA","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310969,-10.200803]}},{"type":"Feature","properties":{"uid":"PT_0134","id":null,"cod":"PI0033","nome":"LABORATÓRIO DE SOLOS","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310918,-10.200813]}},{"type":"Feature","properties":{"uid":"PT_0135","id":null,"cod":"PI0034","nome":"LABORATÓRIO DE BIOLOGIA","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310849,-10.200829]}},{"type":"Feature","properties":{"uid":"PT_0136","id":null,"cod":"PI0035","nome":"LABORATÓRIO DE ALIMENTOS","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310792,-10.200844]}},{"type":"Feature","properties":{"uid":"PT_0137","id":null,"cod":"PI0036","nome":"LABORATÓRIO DE FITOPATOLOGIA","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310741,-10.200855]}},{"type":"Feature","properties":{"uid":"PT_0138","id":null,"cod":"PI0037","nome":"LABORATÓRIO DE AQUAPONIA","categoria":null,"edif_cod":"ED034","edif_nome":"Bloco 13","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310701,-10.200865]}},{"type":"Feature","properties":{"uid":"PT_0139","id":null,"cod":"PI0038","nome":"Sanitário Masculino","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312274,-10.199874]}},{"type":"Feature","properties":{"uid":"PT_0140","id":null,"cod":"PI0039","nome":"Sanitário Feminino","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312282,-10.199911]}},{"type":"Feature","properties":{"uid":"PT_0141","id":null,"cod":"PI0040","nome":"Laboratòrio","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312101,-10.199909]}},{"type":"Feature","properties":{"uid":"PT_0142","id":null,"cod":"PI0041","nome":"Laboratório de Fisico-Quimica da água","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312036,-10.199924]}},{"type":"Feature","properties":{"uid":"PT_0143","id":null,"cod":"PI0042","nome":"CPD","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312008,-10.19993]}},{"type":"Feature","properties":{"uid":"PT_0144","id":null,"cod":"PI0043","nome":"Laboratório de Meio Ambiente","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311974,-10.199936]}},{"type":"Feature","properties":{"uid":"PT_0145","id":null,"cod":"PI0044","nome":"Apoio","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312002,-10.199976]}},{"type":"Feature","properties":{"uid":"PT_0146","id":null,"cod":"PI0045","nome":"Laboratório de Fisica","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311922,-10.199948]}},{"type":"Feature","properties":{"uid":"PT_0147","id":null,"cod":"PI0046","nome":"Sala Quente","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311874,-10.199958]}},{"type":"Feature","properties":{"uid":"PT_0148","id":null,"cod":"PI0047","nome":"Sala De Atividades","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31188,-10.199997]}},{"type":"Feature","properties":{"uid":"PT_0149","id":null,"cod":"PI0048","nome":"Laboratório de Quimica e Biologia","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311825,-10.199968]}},{"type":"Feature","properties":{"uid":"PT_0150","id":null,"cod":"PI0049","nome":"LABEMAT","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311786,-10.199978]}},{"type":"Feature","properties":{"uid":"PT_0151","id":null,"cod":"PI0050","nome":"LAB de Informática","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311737,-10.199985]}},{"type":"Feature","properties":{"uid":"PT_0152","id":null,"cod":"PI0051","nome":"COORD. LICENCIATURA EM MATEMÁTICA","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311696,-10.19999]}},{"type":"Feature","properties":{"uid":"PT_0153","id":null,"cod":"PI0052","nome":"COORD. LICENCIATURA EM FISICA","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311705,-10.200037]}},{"type":"Feature","properties":{"uid":"PT_0154","id":null,"cod":"PI0053","nome":"COORD. 1","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311648,-10.199998]}},{"type":"Feature","properties":{"uid":"PT_0155","id":null,"cod":"PI0054","nome":"COORD. 2","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311657,-10.200041]}},{"type":"Feature","properties":{"uid":"PT_0156","id":null,"cod":"PI0055","nome":"COORD. 3","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311628,-10.20006]}},{"type":"Feature","properties":{"uid":"PT_0157","id":null,"cod":"PI0056","nome":"Atendimento: Escritório Modelo; TCC e Horas Complementares","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311561,-10.20002]}},{"type":"Feature","properties":{"uid":"PT_0158","id":null,"cod":"PI0057","nome":"Sala de Reunião","categoria":null,"edif_cod":"ED002","edif_nome":"Bloco 7","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311565,-10.200066]}},{"type":"Feature","properties":{"uid":"PT_0159","id":null,"cod":"PI0058","nome":"Sanitário Masculino","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311461,-10.200041]}},{"type":"Feature","properties":{"uid":"PT_0160","id":null,"cod":"PI0059","nome":"Sanitário Feminino","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311467,-10.200077]}},{"type":"Feature","properties":{"uid":"PT_0161","id":null,"cod":"PI0060","nome":"Laboratório de Informática","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311324,-10.20007]}},{"type":"Feature","properties":{"uid":"PT_0162","id":null,"cod":"PI0061","nome":"Ambiente De Trabalho em Grupo","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311275,-10.200081]}},{"type":"Feature","properties":{"uid":"PT_0163","id":null,"cod":"PI0062","nome":"GAB. COORD. PROJ.","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311289,-10.200129]}},{"type":"Feature","properties":{"uid":"PT_0164","id":null,"cod":"PI0063","nome":"GAB. SUP. ESTÁGIO","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311261,-10.200141]}},{"type":"Feature","properties":{"uid":"PT_0165","id":null,"cod":"PI0064","nome":"GAB. SUP. ATIVIDADES COMPLEMENTARES","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311232,-10.200145]}},{"type":"Feature","properties":{"uid":"PT_0166","id":null,"cod":"PI0065","nome":"GAB. SUP. PCC","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311205,-10.200124]}},{"type":"Feature","properties":{"uid":"PT_0167","id":null,"cod":"PI0066","nome":"GAB. SUP. TCC.","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311199,-10.200091]}},{"type":"Feature","properties":{"uid":"PT_0168","id":null,"cod":"PI0067","nome":"Mini-Auditório Bloco 07","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311386,-10.200059]}},{"type":"Feature","properties":{"uid":"PT_0169","id":null,"cod":"PI0068","nome":"SALA DE METODOLOGIA PARA O ENSINO DA MATEMÁTICA","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311147,-10.200114]}},{"type":"Feature","properties":{"uid":"PT_0170","id":null,"cod":"PI0069","nome":"CPD","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311153,-10.20016]}},{"type":"Feature","properties":{"uid":"PT_0171","id":null,"cod":"PI0070","nome":"LABORATÓRIO DE AUTOCAD","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311105,-10.200121]}},{"type":"Feature","properties":{"uid":"PT_0172","id":null,"cod":"PI0071","nome":"AMBIENTE DE TRABALHO EM GRUPO BLOCO 07","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311059,-10.200124]}},{"type":"Feature","properties":{"uid":"PT_0173","id":null,"cod":"PI0072","nome":"COORDENAÇÃO DE LICENCIATURA EM FISICA","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311011,-10.200133]}},{"type":"Feature","properties":{"uid":"PT_0174","id":null,"cod":"PI0073","nome":"COORD. DE CIÃŠNCIAS MATEMÃTICAS E NATURAIS","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31107,-10.200173]}},{"type":"Feature","properties":{"uid":"PT_0175","id":null,"cod":"PI0074","nome":"COORD. DE LICENCIATURA EM MATEMÁTICA","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311013,-10.200186]}},{"type":"Feature","properties":{"uid":"PT_0176","id":null,"cod":"PI0075","nome":"COORDENAÇÕES","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310925,-10.200179]}},{"type":"Feature","properties":{"uid":"PT_0177","id":null,"cod":"PI0076","nome":"LABORATÃ“RIO DE INFORMÃTICA","categoria":null,"edif_cod":"ED003","edif_nome":"Bloco 7A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310809,-10.200202]}},{"type":"Feature","properties":{"uid":"PT_0178","id":null,"cod":"PI0077","nome":"Coord. Ciências humanas","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312136,-10.199658]}},{"type":"Feature","properties":{"uid":"PT_0179","id":null,"cod":"PI0078","nome":"Sala de aula","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312099,-10.199632]}},{"type":"Feature","properties":{"uid":"PT_0180","id":null,"cod":"PI0079","nome":"Life","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312065,-10.199638]}},{"type":"Feature","properties":{"uid":"PT_0181","id":null,"cod":"PI0080","nome":"Sala de aula","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312025,-10.199646]}},{"type":"Feature","properties":{"uid":"PT_0182","id":null,"cod":"PI0081","nome":"Sala de aula","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311985,-10.199656]}},{"type":"Feature","properties":{"uid":"PT_0183","id":null,"cod":"PI0082","nome":"Sala de aula","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311942,-10.199665]}},{"type":"Feature","properties":{"uid":"PT_0184","id":null,"cod":"PI0083","nome":"Sala de Aula","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311873,-10.199679]}},{"type":"Feature","properties":{"uid":"PT_0185","id":null,"cod":"PI0084","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31182,-10.199667]}},{"type":"Feature","properties":{"uid":"PT_0186","id":null,"cod":"PI0085","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311833,-10.199724]}},{"type":"Feature","properties":{"uid":"PT_0187","id":null,"cod":"PI0086","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311767,-10.19968]}},{"type":"Feature","properties":{"uid":"PT_0188","id":null,"cod":"PI0087","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311775,-10.19974]}},{"type":"Feature","properties":{"uid":"PT_0189","id":null,"cod":"PI0088","nome":"Coord. de letras","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311713,-10.199713]}},{"type":"Feature","properties":{"uid":"PT_0190","id":null,"cod":"PI0089","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311737,-10.199749]}},{"type":"Feature","properties":{"uid":"PT_0191","id":null,"cod":"PI0090","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311689,-10.199754]}},{"type":"Feature","properties":{"uid":"PT_0192","id":null,"cod":"PI0091","nome":"Coord. de C. Civil","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311649,-10.199708]}},{"type":"Feature","properties":{"uid":"PT_0193","id":null,"cod":"PI0092","nome":"Atendimento","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311659,-10.19976]}},{"type":"Feature","properties":{"uid":"PT_0194","id":null,"cod":"PI0093","nome":"S. espera","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311616,-10.199715]}},{"type":"Feature","properties":{"uid":"PT_0195","id":null,"cod":"PI0094","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31163,-10.199765]}},{"type":"Feature","properties":{"uid":"PT_0196","id":null,"cod":"PI0095","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311588,-10.199719]}},{"type":"Feature","properties":{"uid":"PT_0197","id":null,"cod":"PI0096","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311607,-10.19977]}},{"type":"Feature","properties":{"uid":"PT_0198","id":null,"cod":"PI0097","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311565,-10.199724]}},{"type":"Feature","properties":{"uid":"PT_0199","id":null,"cod":"PI0098","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311583,-10.199776]}},{"type":"Feature","properties":{"uid":"PT_0200","id":null,"cod":"PI0099","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311546,-10.199727]}},{"type":"Feature","properties":{"uid":"PT_0201","id":null,"cod":"PI0100","nome":"área de foco","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311551,-10.199784]}},{"type":"Feature","properties":{"uid":"PT_0202","id":null,"cod":"PI0101","nome":"mini-auditório bloco 05","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.3115,-10.199765]}},{"type":"Feature","properties":{"uid":"PT_0203","id":null,"cod":"PI0102","nome":"laboratório de anatomia","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311377,-10.199785]}},{"type":"Feature","properties":{"uid":"PT_0204","id":null,"cod":"PI0103","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311322,-10.199797]}},{"type":"Feature","properties":{"uid":"PT_0205","id":null,"cod":"PI0104","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311263,-10.199807]}},{"type":"Feature","properties":{"uid":"PT_0206","id":null,"cod":"PI0105","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311204,-10.199819]}},{"type":"Feature","properties":{"uid":"PT_0207","id":null,"cod":"PI0106","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311134,-10.199834]}},{"type":"Feature","properties":{"uid":"PT_0208","id":null,"cod":"PI0107","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311051,-10.199852]}},{"type":"Feature","properties":{"uid":"PT_0209","id":null,"cod":"PI0108","nome":"sala de aula","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310975,-10.199867]}},{"type":"Feature","properties":{"uid":"PT_0210","id":null,"cod":"PI0109","nome":"sala de esportes de raquete","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310892,-10.199886]}},{"type":"Feature","properties":{"uid":"PT_0211","id":null,"cod":"PI0110","nome":"laboratório de testes, medidas e avaliação","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310825,-10.199898]}},{"type":"Feature","properties":{"uid":"PT_0212","id":null,"cod":"PI0111","nome":"laboratório de corpo e movimento","categoria":null,"edif_cod":"ED004","edif_nome":"Bloco 5A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310743,-10.199914]}},{"type":"Feature","properties":{"uid":"PT_0213","id":null,"cod":"PI0112","nome":"Coard","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312221,-10.199586]}},{"type":"Feature","properties":{"uid":"PT_0214","id":null,"cod":"PI0113","nome":"Depósito","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312191,-10.199591]}},{"type":"Feature","properties":{"uid":"PT_0215","id":null,"cod":"PI0114","nome":"CPD","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312204,-10.199648]}},{"type":"Feature","properties":{"uid":"PT_0216","id":null,"cod":"PI0115","nome":"Lab. Segurança do trabalho","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312159,-10.199597]}},{"type":"Feature","properties":{"uid":"PT_0217","id":null,"cod":"PI0116","nome":"Recepção coord. ciências humanas","categoria":null,"edif_cod":"ED001","edif_nome":"Bloco 5","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312128,-10.199603]}},{"type":"Feature","properties":{"uid":"PT_0218","id":null,"cod":"PI0117","nome":"COORD. DE PROCESSO SELETIVO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312517,-10.199263]}},{"type":"Feature","properties":{"uid":"PT_0219","id":null,"cod":"PI0118","nome":"ESPAÇO DO SERVIDOR","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312461,-10.199189]}},{"type":"Feature","properties":{"uid":"PT_0220","id":null,"cod":"PI0119","nome":"COPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312488,-10.199181]}},{"type":"Feature","properties":{"uid":"PT_0221","id":null,"cod":"PI0120","nome":"CPPD","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312526,-10.199171]}},{"type":"Feature","properties":{"uid":"PT_0222","id":null,"cod":"PI0121","nome":"SALA DE REUNIÕES","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312562,-10.199153]}},{"type":"Feature","properties":{"uid":"PT_0223","id":null,"cod":"PI0122","nome":"SALA DE APOIO/QUADRO DE CHAVES","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31257,-10.199174]}},{"type":"Feature","properties":{"uid":"PT_0224","id":null,"cod":"PI0123","nome":"ARQUIVOS","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312632,-10.199156]}},{"type":"Feature","properties":{"uid":"PT_0225","id":null,"cod":"PI0124","nome":"GERÊNCIA DE RECURSOS HUMANOS","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312661,-10.199131]}},{"type":"Feature","properties":{"uid":"PT_0226","id":null,"cod":"PI0125","nome":"RECEPÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312711,-10.199133]}},{"type":"Feature","properties":{"uid":"PT_0227","id":null,"cod":"PI0126","nome":"DIRETORIA DE ADMINISTRAÇÃO E PLANEJAMENTO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312743,-10.199127]}},{"type":"Feature","properties":{"uid":"PT_0228","id":null,"cod":"PI0127","nome":"DIRETORIA DE ADMINISTRAÇÃO E PLANEJAMENTO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312773,-10.199123]}},{"type":"Feature","properties":{"uid":"PT_0229","id":null,"cod":"PI0128","nome":"COMUNICAÇÃO SOCIAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312798,-10.199114]}},{"type":"Feature","properties":{"uid":"PT_0230","id":null,"cod":"PI0129","nome":"RECEPÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31283,-10.199117]}},{"type":"Feature","properties":{"uid":"PT_0231","id":null,"cod":"PI0130","nome":"CHEFIA DE GABINETE - DIREÇÃO GERAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312824,-10.199095]}},{"type":"Feature","properties":{"uid":"PT_0232","id":null,"cod":"PI0131","nome":"COPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312859,-10.199103]}},{"type":"Feature","properties":{"uid":"PT_0233","id":null,"cod":"PI0132","nome":"DIREÇÃO GERAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312894,-10.199094]}},{"type":"Feature","properties":{"uid":"PT_0234","id":null,"cod":"PI0133","nome":"SALA DE REUNIÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312931,-10.199083]}},{"type":"Feature","properties":{"uid":"PT_0235","id":null,"cod":"PI0134","nome":"CPD CENTRAL","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312962,-10.199171]}},{"type":"Feature","properties":{"uid":"PT_0236","id":null,"cod":"PI0135","nome":"DEPOSITO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312928,-10.199178]}},{"type":"Feature","properties":{"uid":"PT_0237","id":null,"cod":"PI0136","nome":"SALA DE MANUTENÇÃO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312898,-10.199184]}},{"type":"Feature","properties":{"uid":"PT_0238","id":null,"cod":"PI0137","nome":"SALA DE ATENDIMENTO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312875,-10.19919]}},{"type":"Feature","properties":{"uid":"PT_0239","id":null,"cod":"PI0138","nome":"GTI E SALA DE REUNIÃO TI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312849,-10.199195]}},{"type":"Feature","properties":{"uid":"PT_0240","id":null,"cod":"PI0139","nome":"DEPPI","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312828,-10.1992]}},{"type":"Feature","properties":{"uid":"PT_0241","id":null,"cod":"PI0140","nome":"COORD. DE PESQUISA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312801,-10.199205]}},{"type":"Feature","properties":{"uid":"PT_0242","id":null,"cod":"PI0141","nome":"I.S.M","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312774,-10.199213]}},{"type":"Feature","properties":{"uid":"PT_0243","id":null,"cod":"PI0142","nome":"I.S.F","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312742,-10.199217]}},{"type":"Feature","properties":{"uid":"PT_0244","id":null,"cod":"PI0143","nome":"COORD. DE CONTABILIDADE E EXECUÇÃO FINANCEIRA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312717,-10.199223]}},{"type":"Feature","properties":{"uid":"PT_0245","id":null,"cod":"PI0144","nome":"CPA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312682,-10.199231]}},{"type":"Feature","properties":{"uid":"PT_0246","id":null,"cod":"PI0145","nome":"ARQUIVO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312648,-10.199239]}},{"type":"Feature","properties":{"uid":"PT_0247","id":null,"cod":"PI0146","nome":"CORES GERÊNCIA","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312612,-10.199244]}},{"type":"Feature","properties":{"uid":"PT_0248","id":null,"cod":"PI0147","nome":"CIRCULAÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312572,-10.199241]}},{"type":"Feature","properties":{"uid":"PT_0249","id":null,"cod":"PI0148","nome":"CORES COORDENAÇÃO","categoria":null,"edif_cod":"ED013","edif_nome":"Bloco 1","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312577,-10.199268]}},{"type":"Feature","properties":{"uid":"PT_0250","id":null,"cod":"PI0149","nome":"RAMPA","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312618,-10.199528]}},{"type":"Feature","properties":{"uid":"PT_0251","id":null,"cod":"PI0150","nome":"COORD. ÁREA DE INFORMATICA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312741,-10.199503]}},{"type":"Feature","properties":{"uid":"PT_0252","id":null,"cod":"PI0151","nome":"LABORATÃ“RIO DE INFORMÃTICA HIPERMÃDIA E MULTIMÃDIA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312816,-10.199487]}},{"type":"Feature","properties":{"uid":"PT_0253","id":null,"cod":"PI0152","nome":"LABORATÃ“RIO DE INFORMÃTICA II TECNOLOGIAS AVANÃ‡ADAS","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312876,-10.199474]}},{"type":"Feature","properties":{"uid":"PT_0254","id":null,"cod":"PI0153","nome":"HALL","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312934,-10.199447]}},{"type":"Feature","properties":{"uid":"PT_0255","id":null,"cod":"PI0154","nome":"LABORATORISTA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312936,-10.199466]}},{"type":"Feature","properties":{"uid":"PT_0256","id":null,"cod":"PI0155","nome":"CPD","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312939,-10.199487]}},{"type":"Feature","properties":{"uid":"PT_0257","id":null,"cod":"PI0156","nome":"LABORATÃ“RIO DE INFORMÃTICA III - PROGRAMAÃ‡ÃƒO E OTIMIZAÃ‡ÃƒO","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313007,-10.19944]}},{"type":"Feature","properties":{"uid":"PT_0258","id":null,"cod":"PI0157","nome":"LABORATÃ“RIO DE INFORMÃTICA IV - DESENVOLVIMENTO","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313085,-10.199426]}},{"type":"Feature","properties":{"uid":"PT_0259","id":null,"cod":"PI0158","nome":"LABORATÃ“RIO DE INFORMÃTICA V","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313135,-10.199415]}},{"type":"Feature","properties":{"uid":"PT_0260","id":null,"cod":"PI0159","nome":"COORD. DA PÃ“S GRADUAÃ‡ÃƒO EM TELEMÃTICA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313201,-10.199392]}},{"type":"Feature","properties":{"uid":"PT_0261","id":null,"cod":"PI0160","nome":"GREDES","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313205,-10.199416]}},{"type":"Feature","properties":{"uid":"PT_0262","id":null,"cod":"PI0161","nome":"SALA DE AULA","categoria":null,"edif_cod":"ED015","edif_nome":"Bloco 4","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313266,-10.199387]}},{"type":"Feature","properties":{"uid":"PT_0263","id":null,"cod":"PI0162","nome":"SAN. MASCULINO","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312807,-10.199759]}},{"type":"Feature","properties":{"uid":"PT_0264","id":null,"cod":"PI0163","nome":"SAN. FEMININO","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312817,-10.19981]}},{"type":"Feature","properties":{"uid":"PT_0265","id":null,"cod":"PI0164","nome":"LABORATÓRIO DE HARDWARE","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312903,-10.199765]}},{"type":"Feature","properties":{"uid":"PT_0266","id":null,"cod":"PI0165","nome":"LABORATÃ“RIO DE INFORMÃTICA VI","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312963,-10.199754]}},{"type":"Feature","properties":{"uid":"PT_0267","id":null,"cod":"PI0166","nome":"LABORATÃ“RIO DE INFORMÃTICA VII","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313033,-10.199737]}},{"type":"Feature","properties":{"uid":"PT_0268","id":null,"cod":"PI0167","nome":"PLABORATÃ“RIO DE INFORMÃTICA VIII","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313107,-10.199722]}},{"type":"Feature","properties":{"uid":"PT_0269","id":null,"cod":"PI0168","nome":"LABPORATÃ“RIO DE INFORMÃTICA IX","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313174,-10.199707]}},{"type":"Feature","properties":{"uid":"PT_0270","id":null,"cod":"PI0169","nome":"LABORATÃ“RIO DE INFORMÃTICA X","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31324,-10.199692]}},{"type":"Feature","properties":{"uid":"PT_0271","id":null,"cod":"PI0170","nome":"COORD. DE SISTEMAS","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313296,-10.199663]}},{"type":"Feature","properties":{"uid":"PT_0272","id":null,"cod":"PI0171","nome":"CPD","categoria":null,"edif_cod":"ED016","edif_nome":"Bloco 6","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313302,-10.199692]}},{"type":"Feature","properties":{"uid":"PT_0273","id":null,"cod":"PI0172","nome":"Atendimento Integrador","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312248,-10.199223]}},{"type":"Feature","properties":{"uid":"PT_0274","id":null,"cod":"PI0173","nome":"recepção","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31238,-10.199276]}},{"type":"Feature","properties":{"uid":"PT_0275","id":null,"cod":"PI0174","nome":"Auditório EAD","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311632,-10.199409]}},{"type":"Feature","properties":{"uid":"PT_0276","id":null,"cod":"PI0175","nome":"sala de musica","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311736,-10.199361]}},{"type":"Feature","properties":{"uid":"PT_0277","id":null,"cod":"PI0176","nome":"Sala de Musica II","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311808,-10.19942]}},{"type":"Feature","properties":{"uid":"PT_0278","id":null,"cod":"PI0177","nome":"Sala de Edição","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31182,-10.199337]}},{"type":"Feature","properties":{"uid":"PT_0279","id":null,"cod":"PI0178","nome":"GEAE","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312184,-10.199239]}},{"type":"Feature","properties":{"uid":"PT_0280","id":null,"cod":"PI0179","nome":"recepção","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312133,-10.199253]}},{"type":"Feature","properties":{"uid":"PT_0281","id":null,"cod":"PI0180","nome":"diren","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312082,-10.199265]}},{"type":"Feature","properties":{"uid":"PT_0282","id":null,"cod":"PI0181","nome":"GES","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31204,-10.199274]}},{"type":"Feature","properties":{"uid":"PT_0283","id":null,"cod":"PI0182","nome":"Setor Enfermagem","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311995,-10.199284]}},{"type":"Feature","properties":{"uid":"PT_0284","id":null,"cod":"PI0183","nome":"nutrição","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31196,-10.199281]}},{"type":"Feature","properties":{"uid":"PT_0285","id":null,"cod":"PI0184","nome":"banheiros","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312312,-10.199293]}},{"type":"Feature","properties":{"uid":"PT_0286","id":null,"cod":"PI0185","nome":"S.Professores","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312262,-10.199306]}},{"type":"Feature","properties":{"uid":"PT_0287","id":null,"cod":"PI0186","nome":"Labin sala","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312209,-10.199319]}},{"type":"Feature","properties":{"uid":"PT_0288","id":null,"cod":"PI0187","nome":"coordenação de execução de programas","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31217,-10.199323]}},{"type":"Feature","properties":{"uid":"PT_0289","id":null,"cod":"PI0188","nome":"sala de reuniãoII","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312135,-10.19933]}},{"type":"Feature","properties":{"uid":"PT_0290","id":null,"cod":"PI0189","nome":"SEtor de Serviço Social","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312099,-10.199344]}},{"type":"Feature","properties":{"uid":"PT_0291","id":null,"cod":"PI0190","nome":"empressa jr","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312064,-10.199349]}},{"type":"Feature","properties":{"uid":"PT_0292","id":null,"cod":"PI0191","nome":"Coord.seg do trabalho","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312033,-10.199355]}},{"type":"Feature","properties":{"uid":"PT_0293","id":null,"cod":"PI0192","nome":"banheiros","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311986,-10.199357]}},{"type":"Feature","properties":{"uid":"PT_0294","id":null,"cod":"PI0193","nome":"CPE","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311937,-10.19937]}},{"type":"Feature","properties":{"uid":"PT_0295","id":null,"cod":"PI0194","nome":"Sala de Artes Visuais","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31187,-10.199319]}},{"type":"Feature","properties":{"uid":"PT_0296","id":null,"cod":"PI0195","nome":"Ginasio","categoria":null,"edif_cod":"ED007","edif_nome":"Ginásio","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310721,-10.19959]}},{"type":"Feature","properties":{"uid":"PT_0297","id":null,"cod":"PI0196","nome":"Piscina","categoria":null,"edif_cod":"ED008","edif_nome":"Piscina","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310276,-10.199616]}},{"type":"Feature","properties":{"uid":"PT_0298","id":null,"cod":"PI0197","nome":"Quadra de Basquete","categoria":null,"edif_cod":"ED009","edif_nome":"Quadra","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310034,-10.199656]}},{"type":"Feature","properties":{"uid":"PT_0299","id":null,"cod":"PI0198","nome":"Quadra de Basquete","categoria":null,"edif_cod":"ED010","edif_nome":"Basquete","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.309795,-10.199699]}},{"type":"Feature","properties":{"uid":"PT_0300","id":null,"cod":"PI0199","nome":"Biblioteca","categoria":"Ensino","edif_cod":"ED001","edif_nome":"Bloco 5","pavto":"0","descricao":"Biblioteca João Paulo II"},"geometry":{"type":"Point","coordinates":[-48.312186,-10.198096]}},{"type":"Feature","properties":{"uid":"PT_0301","id":null,"cod":"PI0200","nome":"BLOCO14","categoria":"ENSINO","edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311704,-10.19822]}},{"type":"Feature","properties":{"uid":"PT_0302","id":null,"cod":"PI0201","nome":"BANHIRO_MASC","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311344,-10.198263]}},{"type":"Feature","properties":{"uid":"PT_0303","id":null,"cod":"PI0202","nome":"BANHEIRO_FEM","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311287,-10.198277]}},{"type":"Feature","properties":{"uid":"PT_0304","id":null,"cod":"PI0203","nome":"BANHEIRO_PCD","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311316,-10.19827]}},{"type":"Feature","properties":{"uid":"PT_0305","id":null,"cod":"PI0204","nome":"SALA01_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31164,-10.198231]}},{"type":"Feature","properties":{"uid":"PT_0306","id":null,"cod":"PI0205","nome":"SALA02_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311546,-10.198247]}},{"type":"Feature","properties":{"uid":"PT_0307","id":null,"cod":"PI0206","nome":"SALA03_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311471,-10.198264]}},{"type":"Feature","properties":{"uid":"PT_0308","id":null,"cod":"PI0207","nome":"SALA04_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311402,-10.198279]}},{"type":"Feature","properties":{"uid":"PT_0309","id":null,"cod":"PI0208","nome":"CPD","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311377,-10.198283]}},{"type":"Feature","properties":{"uid":"PT_0310","id":null,"cod":"PI0209","nome":"ENFERMARIA","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311348,-10.198247]}},{"type":"Feature","properties":{"uid":"PT_0311","id":null,"cod":"PI0210","nome":"SALA05_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311283,-10.198303]}},{"type":"Feature","properties":{"uid":"PT_0312","id":null,"cod":"PI0211","nome":"SALA06_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311175,-10.198324]}},{"type":"Feature","properties":{"uid":"PT_0313","id":null,"cod":"PI0212","nome":"SALA07_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311091,-10.198344]}},{"type":"Feature","properties":{"uid":"PT_0314","id":null,"cod":"PI0213","nome":"SALA08_INF","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311011,-10.198359]}},{"type":"Feature","properties":{"uid":"PT_0315","id":null,"cod":"PI0214","nome":"REFEITORIO","categoria":null,"edif_cod":"ED033","edif_nome":"Refeitório","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313033,-10.198558]}},{"type":"Feature","properties":{"uid":"PT_0316","id":null,"cod":"PI0215","nome":"LANCHONETE","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311745,-10.19859]}},{"type":"Feature","properties":{"uid":"PT_0317","id":null,"cod":"PI0216","nome":"ENTRADA","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312089,-10.197876]}},{"type":"Feature","properties":{"uid":"PT_0318","id":null,"cod":"PI0217","nome":"SUBESTAÇÃO 300kVA - SE 03 SE 04","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310841,-10.198198]}},{"type":"Feature","properties":{"uid":"PT_0319","id":null,"cod":"PI0218","nome":"GUARITA","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.313496,-10.198476]}},{"type":"Feature","properties":{"uid":"PT_0320","id":null,"cod":"PI0219","nome":"SALA09_SUPER","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31164,-10.19823]}},{"type":"Feature","properties":{"uid":"PT_0321","id":null,"cod":"PI0220","nome":"SALA10_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311546,-10.198246]}},{"type":"Feature","properties":{"uid":"PT_0322","id":null,"cod":"PI0221","nome":"SALA11_SUPER","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311471,-10.198262]}},{"type":"Feature","properties":{"uid":"PT_0323","id":null,"cod":"PI0222","nome":"SALA12_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311402,-10.198276]}},{"type":"Feature","properties":{"uid":"PT_0324","id":null,"cod":"PI0223","nome":"CPD_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311377,-10.19828]}},{"type":"Feature","properties":{"uid":"PT_0325","id":null,"cod":"PI0224","nome":"BANHEIRO_MASC_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311344,-10.198261]}},{"type":"Feature","properties":{"uid":"PT_0326","id":null,"cod":"PI0225","nome":"BANHEIRO_FEM_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311286,-10.198275]}},{"type":"Feature","properties":{"uid":"PT_0327","id":null,"cod":"PI0226","nome":"BANHEIRO_PCD_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311316,-10.198269]}},{"type":"Feature","properties":{"uid":"PT_0328","id":null,"cod":"PI0227","nome":"BEBEDOURO_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311306,-10.198275]}},{"type":"Feature","properties":{"uid":"PT_0329","id":null,"cod":"PI0228","nome":"SALA13_SUP","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311282,-10.198301]}},{"type":"Feature","properties":{"uid":"PT_0330","id":null,"cod":"PI0229","nome":"SALA14_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311175,-10.198323]}},{"type":"Feature","properties":{"uid":"PT_0331","id":null,"cod":"PI0230","nome":"SALA15_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311091,-10.198343]}},{"type":"Feature","properties":{"uid":"PT_0332","id":null,"cod":"PI0231","nome":"SALA16_SUPE","categoria":null,"edif_cod":"ED028","edif_nome":"Bloco 14","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311011,-10.198358]}},{"type":"Feature","properties":{"uid":"PT_0333","id":null,"cod":"PI0232","nome":"BLOCO15","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311415,-10.198505]}},{"type":"Feature","properties":{"uid":"PT_0334","id":null,"cod":"PI0233","nome":"SALA01_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31166,-10.19834]}},{"type":"Feature","properties":{"uid":"PT_0335","id":null,"cod":"PI0234","nome":"SALA02_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311583,-10.198352]}},{"type":"Feature","properties":{"uid":"PT_0336","id":null,"cod":"PI0235","nome":"SALA03_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311495,-10.198375]}},{"type":"Feature","properties":{"uid":"PT_0337","id":null,"cod":"PI0236","nome":"NAPINE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31143,-10.198388]}},{"type":"Feature","properties":{"uid":"PT_0338","id":null,"cod":"PI0237","nome":"SALA08_INF","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311033,-10.198465]}},{"type":"Feature","properties":{"uid":"PT_0339","id":null,"cod":"PI0238","nome":"RECEPÇÃO GEBT/CAEBT","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311254,-10.198419]}},{"type":"Feature","properties":{"uid":"PT_0340","id":null,"cod":"PI0239","nome":"BANHEIRO_FEM_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311327,-10.198456]}},{"type":"Feature","properties":{"uid":"PT_0341","id":null,"cod":"PI0240","nome":"BANHEIRO_PCD_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311355,-10.19845]}},{"type":"Feature","properties":{"uid":"PT_0342","id":null,"cod":"PI0241","nome":"BEBEDOURO_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311343,-10.198447]}},{"type":"Feature","properties":{"uid":"PT_0343","id":null,"cod":"PI0242","nome":"BANHEIRO_MASC_INF","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311382,-10.198444]}},{"type":"Feature","properties":{"uid":"PT_0344","id":null,"cod":"PI0243","nome":"BANHEIRO_MASC_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31138,-10.198445]}},{"type":"Feature","properties":{"uid":"PT_0345","id":null,"cod":"PI0244","nome":"BANHEIRO_PCD_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311353,-10.198451]}},{"type":"Feature","properties":{"uid":"PT_0346","id":null,"cod":"PI0245","nome":"BANHEIRO_FEM_SUP","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311328,-10.198456]}},{"type":"Feature","properties":{"uid":"PT_0347","id":null,"cod":"PI0246","nome":"BEBEDOURO_SUOE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311365,-10.198441]}},{"type":"Feature","properties":{"uid":"PT_0348","id":null,"cod":"PI0247","nome":"CPD","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311396,-10.198464]}},{"type":"Feature","properties":{"uid":"PT_0349","id":null,"cod":"PI0248","nome":"SALA DE APOIO","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311383,-10.198394]}},{"type":"Feature","properties":{"uid":"PT_0350","id":null,"cod":"PI0249","nome":"SALA DE APOIO","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311385,-10.198396]}},{"type":"Feature","properties":{"uid":"PT_0351","id":null,"cod":"PI0250","nome":"SALA DE APOIO","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311396,-10.19846]}},{"type":"Feature","properties":{"uid":"PT_0352","id":null,"cod":"PI0251","nome":"SALA_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31166,-10.198343]}},{"type":"Feature","properties":{"uid":"PT_0353","id":null,"cod":"PI0252","nome":"SALA10_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311583,-10.198356]}},{"type":"Feature","properties":{"uid":"PT_0354","id":null,"cod":"PI0253","nome":"SALA11_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311495,-10.198378]}},{"type":"Feature","properties":{"uid":"PT_0355","id":null,"cod":"PI0254","nome":"SALA12_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311429,-10.198391]}},{"type":"Feature","properties":{"uid":"PT_0356","id":null,"cod":"PI0255","nome":"SALA13_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311293,-10.198412]}},{"type":"Feature","properties":{"uid":"PT_0357","id":null,"cod":"PI0256","nome":"SALA14_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311192,-10.198432]}},{"type":"Feature","properties":{"uid":"PT_0358","id":null,"cod":"PI0257","nome":"SALA16_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311033,-10.198468]}},{"type":"Feature","properties":{"uid":"PT_0359","id":null,"cod":"PI0258","nome":"SALA15_SUPE","categoria":null,"edif_cod":"ED029","edif_nome":"Bloco 15","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311117,-10.19845]}},{"type":"Feature","properties":{"uid":"PT_0360","id":null,"cod":"PI0259","nome":"RAMPA DE ACESSO","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311516,-10.198312]}},{"type":"Feature","properties":{"uid":"PT_0361","id":null,"cod":"PI0260","nome":"RAMPA_ACESSO","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311654,-10.198678]}},{"type":"Feature","properties":{"uid":"PT_0362","id":null,"cod":"PI0261","nome":"BANHEIRO_MASC_INF","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311463,-10.198816]}},{"type":"Feature","properties":{"uid":"PT_0363","id":null,"cod":"PI0262","nome":"BANH_FEM_INF","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311408,-10.198831]}},{"type":"Feature","properties":{"uid":"PT_0364","id":null,"cod":"PI0263","nome":"BANH_FEM_SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311412,-10.198831]}},{"type":"Feature","properties":{"uid":"PT_0365","id":null,"cod":"PI0264","nome":"BANH_MASC_SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311462,-10.198815]}},{"type":"Feature","properties":{"uid":"PT_0366","id":null,"cod":"PI0265","nome":"BANH_PCD_INF","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311435,-10.198821]}},{"type":"Feature","properties":{"uid":"PT_0367","id":null,"cod":"PI0266","nome":"BANH_PCD_SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311435,-10.19882]}},{"type":"Feature","properties":{"uid":"PT_0368","id":null,"cod":"PI0267","nome":"BEBEDOURO_INF","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311447,-10.198816]}},{"type":"Feature","properties":{"uid":"PT_0369","id":null,"cod":"PI0268","nome":"BEBEDOURO_SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311424,-10.198821]}},{"type":"Feature","properties":{"uid":"PT_0370","id":null,"cod":"PI0269","nome":"BANH_MASC_SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311427,-10.198643]}},{"type":"Feature","properties":{"uid":"PT_0371","id":null,"cod":"PI0270","nome":"BANH_FEM_SUPE","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311369,-10.198653]}},{"type":"Feature","properties":{"uid":"PT_0372","id":null,"cod":"PI0271","nome":"BEBEDOURO_INF","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311399,-10.198652]}},{"type":"Feature","properties":{"uid":"PT_0373","id":null,"cod":"PI0272","nome":"BANHEIRO_PCD_SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311398,-10.19865]}},{"type":"Feature","properties":{"uid":"PT_0374","id":null,"cod":"PI0273","nome":"BEBEDOURO_SUPER","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311388,-10.198653]}},{"type":"Feature","properties":{"uid":"PT_0375","id":null,"cod":"PI0274","nome":"GREMIO ESTUDANTIL","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311438,-10.198624]}},{"type":"Feature","properties":{"uid":"PT_0376","id":null,"cod":"PI0275","nome":"SALA DE DESCANSO","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311519,-10.198616]}},{"type":"Feature","properties":{"uid":"PT_0377","id":null,"cod":"PI0276","nome":"ROTEADOR","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311434,-10.198625]}},{"type":"Feature","properties":{"uid":"PT_0378","id":null,"cod":"PI0277","nome":"ENFERMAGEM","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311433,-10.198613]}},{"type":"Feature","properties":{"uid":"PT_0379","id":null,"cod":"PI0278","nome":"MESA LANCHONETE","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311644,-10.198588]}},{"type":"Feature","properties":{"uid":"PT_0380","id":null,"cod":"PI0279","nome":"ENFERMAGEM_SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311436,-10.198613]}},{"type":"Feature","properties":{"uid":"PT_0381","id":null,"cod":"PI0280","nome":"ROTEADOR_SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311436,-10.198624]}},{"type":"Feature","properties":{"uid":"PT_0382","id":null,"cod":"PI0281","nome":"AREA DE CONVIVENCIA","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31124,-10.198868]}},{"type":"Feature","properties":{"uid":"PT_0383","id":null,"cod":"PI0282","nome":"ARMARIOS","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311539,-10.198807]}},{"type":"Feature","properties":{"uid":"PT_0384","id":null,"cod":"PI0283","nome":"SALA DOS PROFESSORES","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311217,-10.198681]}},{"type":"Feature","properties":{"uid":"PT_0385","id":null,"cod":"PI0284","nome":"CPD","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311491,-10.198815]}},{"type":"Feature","properties":{"uid":"PT_0386","id":null,"cod":"PI0285","nome":"GERENCIAMENTO DE TRANSPORTE","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311496,-10.198811]}},{"type":"Feature","properties":{"uid":"PT_0387","id":null,"cod":"PI0286","nome":"CPD_SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311481,-10.198779]}},{"type":"Feature","properties":{"uid":"PT_0388","id":null,"cod":"PI0287","nome":"SALA01 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311749,-10.198604]}},{"type":"Feature","properties":{"uid":"PT_0389","id":null,"cod":"PI0288","nome":"SALA 2 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311643,-10.198626]}},{"type":"Feature","properties":{"uid":"PT_0390","id":null,"cod":"PI0289","nome":"SALA 3 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311541,-10.198647]}},{"type":"Feature","properties":{"uid":"PT_0391","id":null,"cod":"PI0290","nome":"SALA 4 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311474,-10.198654]}},{"type":"Feature","properties":{"uid":"PT_0392","id":null,"cod":"PI0291","nome":"SALA 5 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311311,-10.198691]}},{"type":"Feature","properties":{"uid":"PT_0393","id":null,"cod":"PI0292","nome":"SALA 6 SUP","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311253,-10.198707]}},{"type":"Feature","properties":{"uid":"PT_0394","id":null,"cod":"PI0293","nome":"SALA 7 SUPE","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311188,-10.198721]}},{"type":"Feature","properties":{"uid":"PT_0395","id":null,"cod":"PI0294","nome":"SALA 8 SUPE","categoria":null,"edif_cod":"ED030","edif_nome":"Bloco 16","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311106,-10.198739]}},{"type":"Feature","properties":{"uid":"PT_0396","id":null,"cod":"PI0295","nome":"SALA 1 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311776,-10.198727]}},{"type":"Feature","properties":{"uid":"PT_0397","id":null,"cod":"PI0296","nome":"SALA 2 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311677,-10.198733]}},{"type":"Feature","properties":{"uid":"PT_0398","id":null,"cod":"PI0297","nome":"SALA 3 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311566,-10.198764]}},{"type":"Feature","properties":{"uid":"PT_0399","id":null,"cod":"PI0298","nome":"SALA 4 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311497,-10.198783]}},{"type":"Feature","properties":{"uid":"PT_0400","id":null,"cod":"PI0299","nome":"SALA 5 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311333,-10.198814]}},{"type":"Feature","properties":{"uid":"PT_0401","id":null,"cod":"PI0300","nome":"SALA 6 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311274,-10.198827]}},{"type":"Feature","properties":{"uid":"PT_0402","id":null,"cod":"PI0301","nome":"SALA 7 SUP","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311207,-10.198842]}},{"type":"Feature","properties":{"uid":"PT_0403","id":null,"cod":"PI0302","nome":"SALA 8 SUPE","categoria":null,"edif_cod":"ED031","edif_nome":"Bloco 17","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311139,-10.198857]}},{"type":"Feature","properties":{"uid":"PT_0404","id":null,"cod":"PI0303","nome":"AUDITORIO CENTRAÇ","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312436,-10.199543]}},{"type":"Feature","properties":{"uid":"PT_0405","id":null,"cod":"PI0304","nome":"DOG_PARK","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.3132,-10.198889]}},{"type":"Feature","properties":{"uid":"PT_0406","id":null,"cod":"PI0305","nome":"Sala de Integração Engenharia Elétrica","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312247,-10.20019]}},{"type":"Feature","properties":{"uid":"PT_0407","id":null,"cod":"PI0306","nome":"Sala de Aula","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312196,-10.200202]}},{"type":"Feature","properties":{"uid":"PT_0408","id":null,"cod":"PI0307","nome":"Sala de Montagem de Circuitos de Comandos elétricos","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312143,-10.200214]}},{"type":"Feature","properties":{"uid":"PT_0409","id":null,"cod":"PI0308","nome":"Laboratório de Transmissão energia elétrica","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312093,-10.200224]}},{"type":"Feature","properties":{"uid":"PT_0410","id":null,"cod":"PI0309","nome":"Laboratório de Eletricidade e Eletrônica","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.312042,-10.200235]}},{"type":"Feature","properties":{"uid":"PT_0411","id":null,"cod":"PI0310","nome":"Sala de Metodologias Ativas","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311989,-10.200245]}},{"type":"Feature","properties":{"uid":"PT_0412","id":null,"cod":"PI0311","nome":"Sala de Práticas Autônomas","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311938,-10.200258]}},{"type":"Feature","properties":{"uid":"PT_0413","id":null,"cod":"PI0312","nome":"Coordenação de Laboratório da Área da Indústria","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31189,-10.200266]}},{"type":"Feature","properties":{"uid":"PT_0414","id":null,"cod":"PI0313","nome":"Coordenação de Laboratório da Área da Industria","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311837,-10.20028]}},{"type":"Feature","properties":{"uid":"PT_0415","id":null,"cod":"PI0314","nome":"Sala de Atividades","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311787,-10.200291]}},{"type":"Feature","properties":{"uid":"PT_0416","id":null,"cod":"PI0315","nome":"Coordenação da Área da Indústria","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311738,-10.200269]}},{"type":"Feature","properties":{"uid":"PT_0417","id":null,"cod":"PI0316","nome":"Coordenação do Curso de Engenharia Elétrica","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311758,-10.200333]}},{"type":"Feature","properties":{"uid":"PT_0418","id":null,"cod":"PI0317","nome":"Laboratório de Processos de Fabricação","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311717,-10.200306]}},{"type":"Feature","properties":{"uid":"PT_0419","id":null,"cod":"PI0318","nome":"Laboratório de Eletropneumática","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311688,-10.200313]}},{"type":"Feature","properties":{"uid":"PT_0420","id":null,"cod":"PI0319","nome":"Laboratório de Instrumentação e controle de Processos","categoria":null,"edif_cod":"ED005","edif_nome":"Bloco 9","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311657,-10.20032]}},{"type":"Feature","properties":{"uid":"PT_0421","id":null,"cod":"PI0320","nome":"Atlética Concreta (Engenharia Civil)","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311511,-10.200327]}},{"type":"Feature","properties":{"uid":"PT_0422","id":null,"cod":"PI0321","nome":"Atlética Blindada","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311521,-10.200379]}},{"type":"Feature","properties":{"uid":"PT_0423","id":null,"cod":"PI0322","nome":"Mini Auditório Bloco 09","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311479,-10.200356]}},{"type":"Feature","properties":{"uid":"PT_0424","id":null,"cod":"PI0323","nome":"Laboratório de Informática (bloco 09)","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311409,-10.200372]}},{"type":"Feature","properties":{"uid":"PT_0425","id":null,"cod":"PI0324","nome":"Laboratório de Comandos Elétricos e Automação","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311348,-10.200385]}},{"type":"Feature","properties":{"uid":"PT_0426","id":null,"cod":"PI0325","nome":"Laboratório de Eletricidade e Eletrônica Básica 1","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311271,-10.200397]}},{"type":"Feature","properties":{"uid":"PT_0427","id":null,"cod":"PI0326","nome":"Laboratório de Máquinas Elétricas","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311206,-10.200411]}},{"type":"Feature","properties":{"uid":"PT_0428","id":null,"cod":"PI0327","nome":"Laboratório de Instalações elétricas","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311094,-10.200438]}},{"type":"Feature","properties":{"uid":"PT_0429","id":null,"cod":"PI0328","nome":"Armazenamento","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311008,-10.200457]}},{"type":"Feature","properties":{"uid":"PT_0430","id":null,"cod":"PI0329","nome":"Laboratório de Manutenção Eletroeletrônica","categoria":null,"edif_cod":"ED006","edif_nome":"Bloco 9A","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310903,-10.200476]}},{"type":"Feature","properties":{"uid":"PT_0431","id":null,"cod":"PI0330","nome":"Laboratório Mecatronica","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310751,-10.200551]}},{"type":"Feature","properties":{"uid":"PT_0432","id":null,"cod":"PI0331","nome":"Sala de Aula","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310668,-10.200624]}},{"type":"Feature","properties":{"uid":"PT_0433","id":null,"cod":"PI0332","nome":"Sala de Aula","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310641,-10.200555]}},{"type":"Feature","properties":{"uid":"PT_0434","id":null,"cod":"PI0333","nome":"Sala de Aula","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310629,-10.200508]}},{"type":"Feature","properties":{"uid":"PT_0435","id":null,"cod":"PI0334","nome":"Coordenação","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310734,-10.200437]}},{"type":"Feature","properties":{"uid":"PT_0436","id":null,"cod":"PI0335","nome":"Sanitários","categoria":null,"edif_cod":"ED035","edif_nome":"Bloco desc","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310728,-10.200383]}},{"type":"Feature","properties":{"uid":"PT_0437","id":null,"cod":"PI0336","nome":"Campo de Futebol","categoria":null,"edif_cod":"ED012","edif_nome":"Gramado","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310375,-10.200585]}},{"type":"Feature","properties":{"uid":"PT_0438","id":null,"cod":"PI0337","nome":"Campo de Areia","categoria":null,"edif_cod":"ED012","edif_nome":"Gramado","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310077,-10.200458]}},{"type":"Feature","properties":{"uid":"PT_0439","id":null,"cod":"PI0338","nome":"Área","categoria":null,"edif_cod":"ED012","edif_nome":"Gramado","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310046,-10.200603]}},{"type":"Feature","properties":{"uid":"PT_0440","id":null,"cod":"PI0339","nome":"Jardim","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.310337,-10.200794]}},{"type":"Feature","properties":{"uid":"PT_0441","id":null,"cod":"PI0340","nome":"Plantação","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.31018,-10.2008]}},{"type":"Feature","properties":{"uid":"PT_0442","id":null,"cod":"SN001","nome":"Bioterio","categoria":null,"edif_cod":"ED018","edif_nome":"Bloco 11","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311179,-10.200687]}},{"type":"Feature","properties":{"uid":"PT_0443","id":null,"cod":"SN002","nome":"Copa EAD","categoria":null,"edif_cod":"ED014","edif_nome":"Bloco 2","pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311905,-10.199323]}},{"type":"Feature","properties":{"uid":"PT_0444","id":null,"cod":"SN003","nome":"Escada Acesso","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311158,-10.198386]}},{"type":"Feature","properties":{"uid":"PT_0445","id":null,"cod":"SN004","nome":"Escada Acesso","categoria":null,"edif_cod":null,"edif_nome":null,"pavto":null,"descricao":null},"geometry":{"type":"Point","coordinates":[-48.311235,-10.198772]}}]}};
+
+    const CAMPUS_CENTER = [-10.1992, -48.3118];
+    const DEFAULT_ORIGIN = [-10.197876, -48.312089];
+
+    // =========================================================================
+    // SELETOR DE MODO: CELULAR (PADRÃO) vs COMPUTADOR
+    // =========================================================================
+    const btnModeMobile = document.getElementById('btnModeMobile');
+    const btnModeDesktop = document.getElementById('btnModeDesktop');
+
+    function setDeviceMode(mode) {
+      const isMobile = mode === 'mobile';
+      document.body.classList.toggle('mode-mobile', isMobile);
+      document.body.classList.toggle('mode-desktop', !isMobile);
+      btnModeMobile.classList.toggle('active', isMobile);
+      btnModeDesktop.classList.toggle('active', !isMobile);
+
+      if (!isMobile) {
+        renderSearchList(document.getElementById('searchInput').value);
+      } else {
+        document.getElementById('searchResults').style.display = 'none';
+      }
+      setTimeout(() => map.invalidateSize(), 150);
+    }
+
+    btnModeMobile.addEventListener('click', () => setDeviceMode('mobile'));
+    btnModeDesktop.addEventListener('click', () => setDeviceMode('desktop'));
+
+    // =========================================================================
+    // MAPA + GOOGLE MAPS SATÉLITE ALTA RESOLUÇÃO
+    // =========================================================================
+    const map = L.map('map', {
+      center: CAMPUS_CENTER,
+      zoom: 17.5,
+      minZoom: 14,
+      maxZoom: 21,
+      zoomSnap: 0.5,
+      zoomDelta: 0.5,
+      zoomControl: false,
+      fadeAnimation: true,
+      zoomAnimation: true
+    });
+
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+    L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+      subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+      maxNativeZoom: 20,
+      maxZoom: 21,
+      keepBuffer: 8,
+      updateWhenZooming: false,
+      updateWhenIdle: true,
+      attribution: 'Imagens de Satélite &copy; Google Maps'
+    }).addTo(map);
+
+    // Legenda (Modo Computador)
+    const legend = L.control({ position: 'topright' });
+    legend.onAdd = function () {
+      const div = L.DomUtil.create('div', 'legend-box');
+      div.innerHTML = `
+        <div><span class="dot" style="background:#3b82f6;"></span><strong>Minha Localização</strong></div>
+        <div id="legAll"><span class="dot" style="background:#22c55e;"></span>Todos os Pontos (SHP)</div>
+        <div id="legDest" style="display:none;"><span class="dot" style="background:#ef4444;"></span>Ponto Localizado</div>
+        <div id="legRoute" style="display:none;"><span style="display:inline-block;width:16px;height:4px;background:#00e5ff;border:1px solid #fff;margin-right:5px;vertical-align:middle;"></span>Traçado até o Destino</div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
+
+    // Camadas SHP
+    const layerEdificacoes = L.layerGroup().addTo(map);
+    const layerCaminhosAll = L.layerGroup().addTo(map);
+    const layerPontosAll = L.layerGroup().addTo(map);
+    const layerRouteOnly = L.layerGroup().addTo(map);
+
+    let allPoints = [];
+    let walkwayEdges = [];
+    let walkwayNodes = [];
+    let userLatLng = L.latLng(DEFAULT_ORIGIN[0], DEFAULT_ORIGIN[1]);
+    let selectedDest = null;
+    let pickingOriginMode = false;
+
+    // Marcador "Minha Localização"
+    const originIcon = L.divIcon({
+      className: '',
+      html: '<div class="pulse-origin"></div>',
+      iconSize: [18, 18],
+      iconAnchor: [9, 9]
+    });
+
+    const originMarker = L.marker(userLatLng, {
+      icon: originIcon,
+      draggable: true,
+      zIndexOffset: 1000
+    })
+      .addTo(map)
+      .bindPopup('<strong>📍 Minha Localização</strong><br/>Arraste para ajustar.');
+
+    originMarker.on('dragend', (e) => {
+      userLatLng = e.target.getLatLng();
+      document.getElementById('locSourceBadge').textContent = 'Ajustado no mapa';
+      if (selectedDest) traceRouteToDestination(selectedDest);
+    });
+
+    // GPS Real
+    document.getElementById('btnUseGps').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        alert('GPS não suportado neste navegador.');
+        return;
+      }
+      setStatus('Obtendo GPS...');
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          userLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+          originMarker.setLatLng(userLatLng);
+          document.getElementById('locSourceBadge').textContent = 'GPS Ativo';
+          if (selectedDest) traceRouteToDestination(selectedDest);
+          else map.setView(userLatLng, 18);
+        },
+        () => {
+          alert('Não foi possível obter o GPS. Use "Marcar no mapa" ou arraste o pino azul.');
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+
+    // Marcar Origem no Mapa
+    const btnPickOrigin = document.getElementById('btnPickOrigin');
+    btnPickOrigin.addEventListener('click', () => {
+      pickingOriginMode = !pickingOriginMode;
+      btnPickOrigin.classList.toggle('active-pick', pickingOriginMode);
+      map.getContainer().style.cursor = pickingOriginMode ? 'crosshair' : '';
+      if (pickingOriginMode) {
+        document.getElementById('searchResults').style.display = 'none';
+      }
+    });
+
+    map.on('click', (e) => {
+      if (!pickingOriginMode) {
+        if (document.body.classList.contains('mode-mobile')) {
+          document.getElementById('searchResults').style.display = 'none';
+        }
+        return;
+      }
+      userLatLng = e.latlng;
+      originMarker.setLatLng(userLatLng);
+      pickingOriginMode = false;
+      btnPickOrigin.classList.remove('active-pick');
+      map.getContainer().style.cursor = '';
+      document.getElementById('locSourceBadge').textContent = 'Marcado no mapa';
+      if (selectedDest) traceRouteToDestination(selectedDest);
+    });
+
+    // =========================================================================
+    // GRAFO DE CAMINHOS + DIJKSTRA
+    // =========================================================================
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const toRad = (d) => (d * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(a));
+    }
+
+    function projectOnSegment(px, py, ax, ay, bx, by) {
+      const cosLat = Math.cos((py * Math.PI) / 180);
+      const dx = (bx - ax) * cosLat;
+      const dy = by - ay;
+      const len2 = dx * dx + dy * dy;
+      if (len2 === 0) return { x: ax, y: ay, t: 0 };
+      let t = (((px - ax) * cosLat) * dx + (py - ay) * dy) / len2;
+      t = Math.max(0, Math.min(1, t));
+      return { x: ax + t * (bx - ax), y: ay + t * (by - ay), t };
+    }
+
+    function buildWalkwayGraph(caminhosFeatures) {
+      walkwayNodes = [];
+      walkwayEdges = [];
+      const segments = [];
+
+      caminhosFeatures.forEach((f) => {
+        if (!f.geometry) return;
+        const lines = f.geometry.type === 'MultiLineString' ? f.geometry.coordinates : [f.geometry.coordinates];
+        lines.forEach((coords) => {
+          for (let i = 0; i < coords.length - 1; i++) {
+            segments.push([coords[i], coords[i + 1]]);
+          }
+        });
+      });
+
+      const getOrAddNode = (lon, lat, tol = 2.5) => {
+        for (let i = 0; i < walkwayNodes.length; i++) {
+          if (haversine(lat, lon, walkwayNodes[i][1], walkwayNodes[i][0]) <= tol) return i;
+        }
+        walkwayNodes.push([lon, lat]);
+        return walkwayNodes.length - 1;
+      };
+
+      segments.forEach(([a, b]) => {
+        getOrAddNode(a[0], a[1], 2.5);
+        getOrAddNode(b[0], b[1], 2.5);
+      });
+
+      segments.forEach(([a, b]) => {
+        const onSeg = [];
+        walkwayNodes.forEach(([nx, ny], idx) => {
+          const proj = projectOnSegment(nx, ny, a[0], a[1], b[0], b[1]);
+          if (haversine(ny, nx, proj.y, proj.x) <= 3.5) onSeg.push({ t: proj.t, idx });
+        });
+        onSeg.sort((p, q) => p.t - q.t);
+        for (let k = 0; k < onSeg.length - 1; k++) {
+          const u = onSeg[k].idx, v = onSeg[k + 1].idx;
+          if (u !== v) {
+            walkwayEdges.push([u, v, haversine(walkwayNodes[u][1], walkwayNodes[u][0], walkwayNodes[v][1], walkwayNodes[v][0])]);
+          }
+        }
+      });
+    }
+
+    function computeShortestPath(startLatLng, endLatLng) {
+      if (walkwayNodes.length === 0 || walkwayEdges.length === 0) {
+        return {
+          coords: [[startLatLng.lat, startLatLng.lng], [endLatLng.lat, endLatLng.lng]],
+          distance: haversine(startLatLng.lat, startLatLng.lng, endLatLng.lat, endLatLng.lng)
+        };
+      }
+
+      const gNodes = walkwayNodes.map((n) => [...n]);
+      const gAdj = Array.from({ length: gNodes.length }, () => []);
+      walkwayEdges.forEach(([u, v, w]) => {
+        gAdj[u].push([v, w]);
+        gAdj[v].push([u, w]);
+      });
+
+      const attachPoint = (lat, lon) => {
+        const vIdx = gNodes.length;
+        gNodes.push([lon, lat]);
+        gAdj.push([]);
+        let bestDist = Infinity, bestProj = null, bestEdge = null;
+
+        walkwayEdges.forEach(([u, v]) => {
+          const [ax, ay] = gNodes[u], [bx, by] = gNodes[v];
+          const proj = projectOnSegment(lon, lat, ax, ay, bx, by);
+          const d = haversine(lat, lon, proj.y, proj.x);
+          if (d < bestDist) { bestDist = d; bestProj = proj; bestEdge = [u, v]; }
+        });
+
+        if (bestProj && bestDist <= 150) {
+          const pIdx = gNodes.length;
+          gNodes.push([bestProj.x, bestProj.y]);
+          gAdj.push([]);
+          const [u, v] = bestEdge;
+          const dVP = haversine(lat, lon, bestProj.y, bestProj.x);
+          const dPU = haversine(bestProj.y, bestProj.x, gNodes[u][1], gNodes[u][0]);
+          const dPV = haversine(bestProj.y, bestProj.x, gNodes[v][1], gNodes[v][0]);
+          gAdj[vIdx].push([pIdx, dVP]); gAdj[pIdx].push([vIdx, dVP]);
+          gAdj[pIdx].push([u, dPU]); gAdj[u].push([pIdx, dPU]);
+          gAdj[pIdx].push([v, dPV]); gAdj[v].push([pIdx, dPV]);
+        } else {
+          let nearest = 0, minD = Infinity;
+          for (let i = 0; i < walkwayNodes.length; i++) {
+            const d = haversine(lat, lon, walkwayNodes[i][1], walkwayNodes[i][0]);
+            if (d < minD) { minD = d; nearest = i; }
+          }
+          gAdj[vIdx].push([nearest, minD]);
+          gAdj[nearest].push([vIdx, minD]);
+        }
+        return vIdx;
+      };
+
+      const sIdx = attachPoint(startLatLng.lat, startLatLng.lng);
+      const eIdx = attachPoint(endLatLng.lat, endLatLng.lng);
+
+      const dist = new Array(gNodes.length).fill(Infinity);
+      const prev = new Array(gNodes.length).fill(-1);
+      const visited = new Array(gNodes.length).fill(false);
+      dist[sIdx] = 0;
+
+      for (let step = 0; step < gNodes.length; step++) {
+        let u = -1, best = Infinity;
+        for (let i = 0; i < gNodes.length; i++) {
+          if (!visited[i] && dist[i] < best) { best = dist[i]; u = i; }
+        }
+        if (u === -1 || u === eIdx) break;
+        visited[u] = true;
+        for (const [v, w] of gAdj[u]) {
+          if (dist[u] + w < dist[v]) { dist[v] = dist[u] + w; prev[v] = u; }
+        }
+      }
+
+      if (dist[eIdx] === Infinity) {
+        return {
+          coords: [[startLatLng.lat, startLatLng.lng], [endLatLng.lat, endLatLng.lng]],
+          distance: haversine(startLatLng.lat, startLatLng.lng, endLatLng.lat, endLatLng.lng)
+        };
+      }
+
+      const path = [];
+      let curr = eIdx;
+      while (curr !== -1) {
+        path.push([gNodes[curr][1], gNodes[curr][0]]);
+        curr = prev[curr];
+      }
+      path.reverse();
+      return { coords: path, distance: dist[eIdx] };
+    }
+
+    // =========================================================================
+    // VISÃO INICIAL (TODOS OS PONTOS) vs VISÃO DE BUSCA (SOMENTE ROTA + DESTINO)
+    // =========================================================================
+    function showAllShpPoints() {
+      selectedDest = null;
+      layerRouteOnly.clearLayers();
+      if (!map.hasLayer(layerPontosAll)) map.addLayer(layerPontosAll);
+      if (!map.hasLayer(layerCaminhosAll)) map.addLayer(layerCaminhosAll);
+
+      document.getElementById('routeCard').style.display = 'none';
+      document.getElementById('legAll').style.display = 'block';
+      document.getElementById('legDest').style.display = 'none';
+      document.getElementById('legRoute').style.display = 'none';
+      setStatus(`Exibindo todos os ${allPoints.length} pontos do Shapefile.`);
+    }
+
+    function traceRouteToDestination(pt) {
+      selectedDest = pt;
+
+      // Oculta todos os outros pontos e caminhos gerais
+      if (map.hasLayer(layerPontosAll)) map.removeLayer(layerPontosAll);
+      if (map.hasLayer(layerCaminhosAll)) map.removeLayer(layerCaminhosAll);
+      layerRouteOnly.clearLayers();
+
+      const destLatLng = L.latLng(pt.lat, pt.lng);
+      const route = computeShortestPath(userLatLng, destLatLng);
+
+      L.polyline(route.coords, { color: '#ffffff', weight: 9, opacity: 0.95 }).addTo(layerRouteOnly);
+      L.polyline(route.coords, { color: '#00e5ff', weight: 5, opacity: 1, dashArray: '10, 6' }).addTo(layerRouteOnly);
+
+      const destIcon = L.divIcon({
+        className: '',
+        html: '<div class="pulse-dest"></div>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      });
+
+      const destMarker = L.marker(destLatLng, { icon: destIcon, zIndexOffset: 1100 }).addTo(layerRouteOnly);
+      const metaText = [
+        pt.edif_nome ? `Edificação: ${pt.edif_nome}` : '',
+        pt.pavto ? `Pavimento: ${pt.pavto}` : '',
+        pt.categoria ? `Categoria: ${pt.categoria}` : '',
+        pt.descricao ? pt.descricao : ''
+      ].filter(Boolean).join(' • ');
+
+      destMarker.bindPopup(
+        `<strong>🎯 ${pt.nome}</strong><br/>` +
+        (metaText ? `<small>${metaText}</small><br/>` : '') +
+        `<span style="color:#1d4ed8;font-weight:bold;">Distância: ${Math.round(route.distance)} m</span>`
+      ).openPopup();
+
+      document.getElementById('destTitle').textContent = `🎯 ${pt.nome}`;
+      document.getElementById('destMeta').textContent = metaText || 'Ponto localizado no SHP';
+      document.getElementById('routeDist').textContent = `📏 ${Math.round(route.distance)} m`;
+      const mins = Math.max(1, Math.round(route.distance / 75));
+      document.getElementById('routeTime').textContent = `🚶 ~${mins} min`;
+      document.getElementById('routeCard').style.display = 'block';
+
+      document.getElementById('legAll').style.display = 'none';
+      document.getElementById('legDest').style.display = 'block';
+      document.getElementById('legRoute').style.display = 'block';
+
+      const bounds = L.latLngBounds(route.coords);
+      bounds.extend(userLatLng);
+      bounds.extend(destLatLng);
+      map.fitBounds(bounds, { padding: [70, 70], maxZoom: 19.5 });
+      setStatus(`Traçado exibido até "${pt.nome}" (${Math.round(route.distance)} m).`);
+    }
+
+    // =========================================================================
+    // CARREGAMENTO AUTOMÁTICO DO SHAPEFILE EMBUTIDO
+    // =========================================================================
+    function initEmbeddedShp(data) {
+      layerEdificacoes.clearLayers();
+      layerCaminhosAll.clearLayers();
+      layerPontosAll.clearLayers();
+      allPoints = [];
+
+      if (data.edificacoes && data.edificacoes.features) {
+        L.geoJSON(data.edificacoes, {
+          style: { color: '#fbbf24', weight: 1.8, fillColor: '#fbbf24', fillOpacity: 0.12 },
+          onEachFeature: (feat, layer) => {
+            const p = feat.properties || {};
+            layer.bindTooltip(p.nome || p.edif_nome || p.cod || 'Edificação', { direction: 'center' });
+          }
+        }).addTo(layerEdificacoes);
+      }
+
+      const caminhosFeatures = (data.caminhos && data.caminhos.features) ? data.caminhos.features : [];
+      if (caminhosFeatures.length > 0) {
+        L.geoJSON(data.caminhos, {
+          style: { color: '#f8fafc', weight: 2, opacity: 0.45, dashArray: '4, 4' }
+        }).addTo(layerCaminhosAll);
+      }
+      buildWalkwayGraph(caminhosFeatures);
+
+      const pontosFeatures = (data.pontos && data.pontos.features) ? data.pontos.features : [];
+      pontosFeatures.forEach((feat, idx) => {
+        if (!feat.geometry || !feat.geometry.coordinates) return;
+        const [lng, lat] = feat.geometry.coordinates;
+        const p = feat.properties || {};
+        const nome = String(p.nome || p.cod || p.id || `Ponto ${idx + 1}`).trim();
+        const ptObj = {
+          uid: p.uid || `PT_${idx}`,
+          id: p.id || '',
+          cod: p.cod || '',
+          nome,
+          edif_nome: p.edif_nome || '',
+          pavto: p.pavto || '',
+          categoria: p.categoria || '',
+          descricao: p.descricao || '',
+          tags: p.tags || '',
+          lat,
+          lng
+        };
+        allPoints.push(ptObj);
+
+        const marker = L.circleMarker([lat, lng], {
+          radius: 6,
+          fillColor: '#22c55e',
+          color: '#ffffff',
+          weight: 1.8,
+          fillOpacity: 0.95
+        });
+
+        marker.bindTooltip(ptObj.nome);
+        marker.on('click', () => {
+          document.getElementById('searchInput').value = ptObj.nome;
+          document.getElementById('clearSearchBtn').style.display = 'block';
+          document.getElementById('searchResults').style.display = 'none';
+          traceRouteToDestination(ptObj);
+        });
+        marker.addTo(layerPontosAll);
+      });
+
+      // Ordena todos os 445 pontos alfabeticamente
+      allPoints.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+
+      document.getElementById('pointsCounter').textContent = `${allPoints.length} pontos SHP`;
+      showAllShpPoints();
+      renderSearchList('');
+
+      if (layerPontosAll.getBounds().isValid()) {
+        map.fitBounds(layerPontosAll.getBounds(), { padding: [45, 45], maxZoom: 18 });
+      }
+    }
+
+    // =========================================================================
+    // BARRA DE PESQUISA COM TODOS OS 445 PONTOS DO SHAPEFILE
+    // =========================================================================
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const clearSearchBtn = document.getElementById('clearSearchBtn');
+    const btnToggleList = document.getElementById('btnToggleList');
+
+    function normalizeText(str) {
+      return String(str || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    }
+
+    function renderSearchList(rawQuery) {
+      const q = normalizeText(rawQuery.trim());
+      const matches = q
+        ? allPoints.filter((pt) =>
+            normalizeText(`${pt.nome} ${pt.edif_nome} ${pt.pavto} ${pt.categoria} ${pt.descricao} ${pt.tags} ${pt.cod} ${pt.id}`).includes(q)
+          )
+        : allPoints;
+
+      searchResults.innerHTML = '';
+
+      const header = document.createElement('div');
+      header.className = 'results-header';
+      header.innerHTML = `
+        <span>${q ? 'Resultados encontrados' : 'Todos os pontos do Shapefile'}</span>
+        <span>${matches.length} de ${allPoints.length}</span>
+      `;
+      searchResults.appendChild(header);
+
+      if (matches.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'result-item';
+        empty.innerHTML = '<span class="result-meta">Nenhum ponto encontrado no Shapefile.</span>';
+        searchResults.appendChild(empty);
+        return;
+      }
+
+      const frag = document.createDocumentFragment();
+      matches.forEach((pt) => {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        const sub = [pt.edif_nome, pt.pavto, pt.categoria, pt.cod || pt.id].filter(Boolean).join(' • ');
+        div.innerHTML = `
+          <div class="result-name">${pt.nome}</div>
+          ${sub ? `<div class="result-meta">${sub}</div>` : ''}
+        `;
+        div.addEventListener('click', () => {
+          searchInput.value = pt.nome;
+          clearSearchBtn.style.display = 'block';
+          if (document.body.classList.contains('mode-mobile')) {
+            searchResults.style.display = 'none';
+          }
+          traceRouteToDestination(pt);
+        });
+        frag.appendChild(div);
+      });
+      searchResults.appendChild(frag);
+    }
+
+    searchInput.addEventListener('focus', () => {
+      renderSearchList(searchInput.value);
+      searchResults.style.display = 'block';
+    });
+
+    btnToggleList.addEventListener('click', () => {
+      const isVisible = searchResults.style.display === 'block';
+      if (isVisible) {
+        searchResults.style.display = 'none';
+      } else {
+        renderSearchList(searchInput.value);
+        searchResults.style.display = 'block';
+      }
+    });
+
+    searchInput.addEventListener('input', () => {
+      const raw = searchInput.value;
+      clearSearchBtn.style.display = raw.trim() ? 'block' : 'none';
+      renderSearchList(raw);
+      searchResults.style.display = 'block';
+      if (!raw.trim()) {
+        showAllShpPoints();
+      }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const first = searchResults.querySelector('.result-item');
+        if (first) first.click();
+      }
+    });
+
+    function clearSearchAndReset() {
+      searchInput.value = '';
+      clearSearchBtn.style.display = 'none';
+      if (document.body.classList.contains('mode-mobile')) {
+        searchResults.style.display = 'none';
+      } else {
+        renderSearchList('');
+      }
+      showAllShpPoints();
+      if (layerPontosAll.getBounds().isValid()) {
+        map.fitBounds(layerPontosAll.getBounds(), { padding: [45, 45], maxZoom: 18 });
+      }
+    }
+
+    clearSearchBtn.addEventListener('click', clearSearchAndReset);
+    document.getElementById('btnResetView').addEventListener('click', clearSearchAndReset);
+
+    function setStatus(msg) {
+      document.getElementById('statusBar').textContent = msg;
+    }
+
+    // Inicializa automaticamente com o Shapefile embutido
+    initEmbeddedShp(EMBEDDED_SHP_DATA);
+
+    // =========================================================================
+    // GERADOR DE QR CODE NATIVO (CANVAS) + LINK DE NAVEGAÇÃO (IFTO MAPS)
+    // =========================================================================
+    const NativeQr = (() => {
+      const ECC_CW = [
+        [-1, 7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28,28,28,30,30,26,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+        [-1,10,16,26,18,24,16,18,22,22,26,30,22,22,24,24,28,28,26,26,26,26,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28,28],
+        [-1,13,22,18,26,18,24,18,22,20,24,28,26,24,20,30,24,28,28,26,30,28,30,30,30,30,28,30,30,30,30,30,30,30,30,30,30,30,30,30,30],
+        [-1,17,28,22,16,22,28,26,26,24,28,24,28,22,24,24,30,28,28,26,28,30,24,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30]
+      ];
+      const NUM_BLK = [
+        [-1,1,1,1,1,1,2,2,2,2,4,4,4,4,4,6,6,6,6,7,8,8,9,9,10,12,12,12,13,14,15,16,17,18,19,19,20,21,22,24,25],
+        [-1,1,1,1,2,2,4,4,4,5,5,5,8,9,9,10,10,11,13,14,16,17,17,18,20,21,23,25,26,28,29,31,33,35,37,38,40,43,45,47,49],
+        [-1,1,1,2,2,4,4,6,6,8,8,8,10,12,16,12,17,16,18,21,20,23,23,25,27,29,34,34,35,38,40,43,45,48,51,53,56,59,62,65,68],
+        [-1,1,1,2,4,4,4,5,6,8,8,11,11,16,16,18,16,19,21,25,25,25,34,30,32,35,37,40,42,45,48,51,54,57,60,63,66,70,74,77,81]
+      ];
+      const rawDataMods = (v) => {
+        let r = (16 * v + 128) * v + 64;
+        if (v >= 2) { const na = Math.floor(v / 7) + 2; r -= (25 * na - 10) * na - 55; if (v >= 7) r -= 36; }
+        return r;
+      };
+      const dataCodewords = (v, ecl) => Math.floor(rawDataMods(v) / 8) - ECC_CW[ecl][v] * NUM_BLK[ecl][v];
+      const rsMul = (x, y) => {
+        let z = 0;
+        for (let i = 7; i >= 0; i--) { z = (z << 1) ^ ((z >> 7) * 0x11D); z ^= ((y >> i) & 1) * x; }
+        return z;
+      };
+      const rsDiv = (deg) => {
+        const res = new Array(deg).fill(0); res[deg - 1] = 1;
+        let root = 1;
+        for (let i = 0; i < deg; i++) {
+          for (let j = 0; j < deg; j++) { res[j] = rsMul(res[j], root); if (j + 1 < deg) res[j] ^= res[j + 1]; }
+          root = rsMul(root, 0x02);
+        }
+        return res;
+      };
+      const rsRem = (data, div) => {
+        const res = new Array(div.length).fill(0);
+        for (const b of data) {
+          const f = b ^ res.shift(); res.push(0);
+          for (let i = 0; i < div.length; i++) res[i] ^= rsMul(div[i], f);
+        }
+        return res;
+      };
+
+      function generate(text) {
+        const bytes = new TextEncoder().encode(text);
+        let ecl = 1, ver = 1;
+        for (ver = 1; ver <= 40; ver++) {
+          const ccBits = ver <= 9 ? 8 : 16;
+          const usedBits = 4 + ccBits + bytes.length * 8;
+          if (usedBits <= dataCodewords(ver, ecl) * 8) break;
+        }
+        for (const ne of [2, 3]) {
+          const ccBits = ver <= 9 ? 8 : 16;
+          if (4 + ccBits + bytes.length * 8 <= dataCodewords(ver, ne) * 8) ecl = ne;
+        }
+        const capBits = dataCodewords(ver, ecl) * 8;
+        const bb = [];
+        const pushBits = (val, len) => { for (let i = len - 1; i >= 0; i--) bb.push((val >> i) & 1); };
+        pushBits(0x4, 4);
+        pushBits(bytes.length, ver <= 9 ? 8 : 16);
+        for (const b of bytes) pushBits(b, 8);
+        pushBits(0, Math.min(4, capBits - bb.length));
+        pushBits(0, (8 - (bb.length % 8)) % 8);
+        let pad = 0xEC;
+        while (bb.length < capBits) { pushBits(pad, 8); pad ^= 0xEC ^ 0x11; }
+
+        const dcw = new Array(bb.length / 8).fill(0);
+        bb.forEach((bit, i) => { dcw[i >> 3] |= bit << (7 - (i & 7)); });
+
+        const nb = NUM_BLK[ecl][ver], bEcc = ECC_CW[ecl][ver];
+        const rawCw = Math.floor(rawDataMods(ver) / 8);
+        const nShort = nb - (rawCw % nb), sLen = Math.floor(rawCw / nb);
+        const blocks = [], div = rsDiv(bEcc);
+        let k = 0;
+        for (let i = 0; i < nb; i++) {
+          const dat = dcw.slice(k, k + sLen - bEcc + (i < nShort ? 0 : 1));
+          k += dat.length;
+          const ecc = rsRem(dat, div);
+          if (i < nShort) dat.push(0);
+          blocks.push(dat.concat(ecc));
+        }
+        const allCw = [];
+        for (let i = 0; i < blocks[0].length; i++) {
+          for (let j = 0; j < nb; j++) {
+            if (i !== sLen - bEcc || j >= nShort) allCw.push(blocks[j][i]);
+          }
+        }
+
+        const sz = ver * 4 + 17;
+        const mod = Array.from({ length: sz }, () => new Array(sz).fill(false));
+        const fn = Array.from({ length: sz }, () => new Array(sz).fill(false));
+        const setFn = (x, y, v) => { if (x >= 0 && x < sz && y >= 0 && y < sz) { mod[y][x] = v; fn[y][x] = true; } };
+
+        for (let i = 0; i < sz; i++) { setFn(6, i, i % 2 === 0); setFn(i, 6, i % 2 === 0); }
+        const drawFinder = (cx, cy) => {
+          for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+            setFn(cx + dx, cy + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 2 && Math.max(Math.abs(dx), Math.abs(dy)) !== 4);
+          }
+        };
+        drawFinder(3, 3); drawFinder(sz - 4, 3); drawFinder(3, sz - 4);
+
+        if (ver >= 2) {
+          const na = Math.floor(ver / 7) + 2;
+          const step = Math.floor((ver * 8 + na * 3 + 5) / (na * 2 - 2)) * 2;
+          const pos = [6];
+          for (let p = sz - 7; pos.length < na; p -= step) pos.splice(1, 0, p);
+          for (let i = 0; i < na; i++) for (let j = 0; j < na; j++) {
+            if (!((i === 0 && j === 0) || (i === 0 && j === na - 1) || (i === na - 1 && j === 0))) {
+              for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+                setFn(pos[i] + dx, pos[j] + dy, Math.max(Math.abs(dx), Math.abs(dy)) !== 1);
+              }
+            }
+          }
+        }
+
+        const drawFmt = (msk) => {
+          const eb = [1, 0, 3, 2][ecl];
+          const d = (eb << 3) | msk;
+          let rem = d;
+          for (let i = 0; i < 10; i++) rem = (rem << 1) ^ ((rem >> 9) * 0x537);
+          const bits = ((d << 10) | rem) ^ 0x5412;
+          for (let i = 0; i < 6; i++) setFn(8, i, ((bits >> i) & 1) !== 0);
+          setFn(8, 7, ((bits >> 6) & 1) !== 0);
+          setFn(8, 8, ((bits >> 7) & 1) !== 0);
+          setFn(7, 8, ((bits >> 8) & 1) !== 0);
+          for (let i = 9; i < 15; i++) setFn(14 - i, 8, ((bits >> i) & 1) !== 0);
+          for (let i = 0; i < 8; i++) setFn(sz - 1 - i, 8, ((bits >> i) & 1) !== 0);
+          for (let i = 8; i < 15; i++) setFn(8, sz - 15 + i, ((bits >> i) & 1) !== 0);
+          setFn(8, sz - 8, true);
+        };
+        drawFmt(0);
+
+        if (ver >= 7) {
+          let rem = ver;
+          for (let i = 0; i < 12; i++) rem = (rem << 1) ^ ((rem >> 11) * 0x1F25);
+          const bits = (ver << 12) | rem;
+          for (let i = 0; i < 18; i++) {
+            const bit = ((bits >> i) & 1) !== 0;
+            setFn(sz - 11 + (i % 3), Math.floor(i / 3), bit);
+            setFn(Math.floor(i / 3), sz - 11 + (i % 3), bit);
+          }
+        }
+
+        let bi = 0;
+        for (let right = sz - 1; right > 0; right -= 2) {
+          if (right === 6) right = 5;
+          for (let vert = 0; vert < sz; vert++) {
+            for (let j = 0; j < 2; j++) {
+              const x = right - j;
+              const up = ((right + 1) & 2) === 0;
+              const y = up ? (sz - 1 - vert) : vert;
+              if (!fn[y][x] && bi < allCw.length * 8) {
+                mod[y][x] = ((allCw[bi >> 3] >> (7 - (bi & 7))) & 1) !== 0;
+                bi++;
+              }
+            }
+          }
+        }
+
+        const msk = 0;
+        for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) {
+          if (!fn[y][x] && (x + y) % 2 === 0) mod[y][x] = !mod[y][x];
+        }
+        drawFmt(msk);
+        return { size: sz, modules: mod };
+      }
+
+      function drawToCanvas(canvas, text) {
+        const qr = generate(text);
+        const quiet = 4;
+        const total = qr.size + quiet * 2;
+        const scale = Math.max(3, Math.floor(canvas.width / total));
+        const pxSize = total * scale;
+        canvas.width = pxSize;
+        canvas.height = pxSize;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pxSize, pxSize);
+        ctx.fillStyle = '#0f172a';
+        for (let y = 0; y < qr.size; y++) {
+          for (let x = 0; x < qr.size; x++) {
+            if (qr.modules[y][x]) {
+              ctx.fillRect((x + quiet) * scale, (y + quiet) * scale, scale, scale);
+            }
+          }
+        }
+      }
+
+      return { drawToCanvas };
+    })();
+
+    let qrLinkMode = 'google'; // 'google' | 'app'
+
+    function buildNavigationLink(mode) {
+      const lat = selectedDest ? selectedDest.lat : CAMPUS_CENTER[0];
+      const lng = selectedDest ? selectedDest.lng : CAMPUS_CENTER[1];
+      if (mode === 'google') {
+        return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`;
+      }
+      const baseUrl = window.location.protocol.startsWith('http')
+        ? window.location.href.split('?')[0]
+        : 'https://ifto-maps.palmas.ifto.edu.br/ifto_maps.html';
+      if (!selectedDest) return baseUrl;
+      const u = new URL(baseUrl);
+      u.searchParams.set('destino', selectedDest.uid);
+      return u.toString();
+    }
+
+    function refreshQrModal() {
+      const link = buildNavigationLink(qrLinkMode);
+      document.getElementById('qrDestLabel').textContent = selectedDest
+        ? `Destino: ${selectedDest.nome}${selectedDest.edif_nome ? ' (' + selectedDest.edif_nome + ')' : ''}`
+        : 'IFTO Maps — Campus Palmas (Acesso Geral)';
+      document.getElementById('navLinkInput').value = link;
+      document.getElementById('tabLinkGoogle').classList.toggle('btn-blue', qrLinkMode === 'google');
+      document.getElementById('tabLinkApp').classList.toggle('btn-blue', qrLinkMode === 'app');
+      NativeQr.drawToCanvas(document.getElementById('qrCanvas'), link);
+    }
+
+    function openQrModal() {
+      refreshQrModal();
+      document.getElementById('qrModal').style.display = 'flex';
+    }
+
+    document.getElementById('btnOpenQr').addEventListener('click', openQrModal);
+    document.getElementById('btnRouteQr').addEventListener('click', openQrModal);
+    document.getElementById('btnCloseQr').addEventListener('click', () => {
+      document.getElementById('qrModal').style.display = 'none';
+    });
+    document.getElementById('qrModal').addEventListener('click', (e) => {
+      if (e.target.id === 'qrModal') document.getElementById('qrModal').style.display = 'none';
+    });
+    document.getElementById('tabLinkGoogle').addEventListener('click', () => {
+      qrLinkMode = 'google';
+      refreshQrModal();
+    });
+    document.getElementById('tabLinkApp').addEventListener('click', () => {
+      qrLinkMode = 'app';
+      refreshQrModal();
+    });
+    document.getElementById('btnCopyLink').addEventListener('click', () => {
+      const input = document.getElementById('navLinkInput');
+      input.select();
+      input.setSelectionRange(0, 99999);
+      if (navigator.clipboard) navigator.clipboard.writeText(input.value);
+      else document.execCommand('copy');
+      const btn = document.getElementById('btnCopyLink');
+      btn.textContent = '✅ Link Copiado!';
+      setStatus('Link de navegação copiado!');
+      setTimeout(() => { btn.textContent = '📋 Copiar Link'; }, 2000);
+    });
+    document.getElementById('btnDownloadQr').addEventListener('click', () => {
+      const canvas = document.getElementById('qrCanvas');
+      const a = document.createElement('a');
+      const slug = selectedDest ? normalizeText(selectedDest.nome).replace(/[^a-z0-9]+/g, '_') : 'campus_palmas';
+      a.download = `qrcode_ifto_maps_${slug}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    });
+    document.getElementById('btnExternalMaps').addEventListener('click', () => {
+      const lat = selectedDest ? selectedDest.lat : CAMPUS_CENTER[0];
+      const lng = selectedDest ? selectedDest.lng : CAMPUS_CENTER[1];
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=walking`, '_blank');
+    });
+
+    // Suporte automático a links diretos (?destino=PT_0300 ou ?destino=Biblioteca & ?origem=lat,lng)
+    (function handleUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      const origemParam = params.get('origem');
+      if (origemParam && origemParam.includes(',')) {
+        const [olat, olng] = origemParam.split(',').map(Number);
+        if (!isNaN(olat) && !isNaN(olng)) {
+          userLatLng = L.latLng(olat, olng);
+          originMarker.setLatLng(userLatLng);
+          document.getElementById('locSourceBadge').textContent = 'Origem via Link';
+        }
+      }
+      const destParam = params.get('destino');
+      if (!destParam) return;
+      const targetNorm = normalizeText(destParam);
+      const found = allPoints.find(
+        (p) => normalizeText(p.uid) === targetNorm || normalizeText(p.cod) === targetNorm || normalizeText(p.nome).includes(targetNorm)
+      );
+      if (found) {
+        document.getElementById('searchInput').value = found.nome;
+        document.getElementById('clearSearchBtn').style.display = 'block';
+        traceRouteToDestination(found);
+      }
+    })();
+  </script>
+
+  <!-- Banner de Instalação como Aplicativo (Android & iOS) -->
+  <div id="installAppBanner" style="display:none; position:fixed; bottom:14px; left:12px; right:12px; z-index:2200; background:#14532d; color:#ffffff; border-radius:14px; padding:12px 14px; box-shadow:0 12px 28px rgba(0,0,0,0.45); border:1px solid #22c55e; align-items:center; justify-content:space-between; gap:10px;">
+    <div style="font-size:0.82rem; line-height:1.3;">
+      <strong>📲 Instalar App IFTO Maps</strong><br/>
+      <span id="installAppHint" style="color:#dcfce7; font-size:0.75rem;">Adicione à tela inicial do celular (Android / iOS).</span>
+    </div>
+    <div style="display:flex; gap:6px; flex-shrink:0;">
+      <button type="button" id="btnInstallApp" style="border:none; background:#22c55e; color:#052e16; font-weight:700; font-size:0.78rem; padding:8px 12px; border-radius:9px; cursor:pointer;">Instalar</button>
+      <button type="button" id="btnDismissInstall" style="border:none; background:rgba(255,255,255,0.18); color:#fff; font-weight:700; font-size:0.78rem; padding:8px 10px; border-radius:9px; cursor:pointer;">✕</button>
+    </div>
+  </div>
+
+  <script>
+    // Registro do Service Worker (PWA Offline/Online Android & iOS)
+    if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+
+    // Prompt de Instalação Nativo (Android Chrome/Edge + Instrução iOS Safari)
+    let deferredInstallPrompt = null;
+    const installBanner = document.getElementById('installAppBanner');
+    const btnInstallApp = document.getElementById('btnInstallApp');
+    const installHint = document.getElementById('installAppHint');
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      if (!window.matchMedia('(display-mode: standalone)').matches) {
+        installBanner.style.display = 'flex';
+      }
+    });
+
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    if (isIos && !isInStandalone && window.location.protocol.startsWith('http')) {
+      installHint.innerHTML = 'No Safari, toque em <strong>Compartilhar (⬆️)</strong> e depois em <strong>"Adicionar à Tela de Início"</strong>.';
+      btnInstallApp.textContent = 'Entendi';
+      installBanner.style.display = 'flex';
+    }
+
+    btnInstallApp.addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice;
+        deferredInstallPrompt = null;
+      }
+      installBanner.style.display = 'none';
+    });
+
+    document.getElementById('btnDismissInstall').addEventListener('click', () => {
+      installBanner.style.display = 'none';
+    });
+  </script>
+</body>
+</html>
